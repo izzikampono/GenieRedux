@@ -1,3 +1,5 @@
+# @package _global_
+
 defaults:
   - /connector@connector: retro_act
   - _self_

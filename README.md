@@ -184,7 +184,7 @@ To generate a dataset with the trained AutoExplore Agent (saved in `data_generat
 
 ```bash
 conda activate retro_datagen
-python run.py generate config=retro_act/auto_explore_ai2 config.connector.agent.checkpoint_fpath=`realpath checkpoints/auto_explore/001_auto_explore/checkpoints/model_best_reward.pt`
+python run.py generate config=retro_act/auto_explore_ai2 connector.agent.checkpoint_fpath=`realpath checkpoints/auto_explore/001_auto_explore/checkpoints/model_best_reward.pt`
 ```
 
 ### Finetuning GenieRedux on AutoExplore Data
@@ -226,11 +226,11 @@ python run.py generate config=<CONNECTOR_NAME>/<CONFIG_NAME>.json
 ```
 
 Note the following important parameters:
-- `config.connector.image_size` - defines the resolution of the images (default: 64).
-- `config.connector.generator_config.n_sessions` - number of episodes to generate.
-- `config.connector.generator_config.n_steps_max` - maximum number of steps before ending the episode.
-- `config.connector.generator_config.n_workers` - number of workers to generate episodes in parallel.
-- `config.connector.generator_config.output_mode` - `frame` or `video` - determines the format in which the data is saved.
+- `connector.image_size` - defines the resolution of the images (default: 64).
+- `connector.generator_config.n_sessions` - number of episodes to generate.
+- `connector.generator_config.n_steps_max` - maximum number of steps before ending the episode.
+- `connector.generator_config.n_workers` - number of workers to generate episodes in parallel.
+- `connector.generator_config.output_mode` - `frame` or `video` - determines the format in which the data is saved.
 
 Additional customization is available in the configuration files in `data_generation/configs/`. 
 
@@ -238,12 +238,12 @@ Additional customization is available in the configuration files in `data_genera
 
 ### Using an Agent
 The policy is selected with:
-- `config.connector.variant` - possible values: `random` (default), `auto_explore` and `agent57`.
+- `connector.variant` - possible values: `random` (default), `auto_explore` and `agent57`.
 
 If an agent (anythin else than `random`) is selected, then the following parameters are available:
-- `config.connector.agent.checkpoint_fpath` - model file path.
-- `config.connector.agent.gamma` - probability of taking a random action.
-- `config.connector.agent.temperature` - (`auto_explore` only) the temperature with which we draw an action from the action policy.
+- `connector.agent.checkpoint_fpath` - model file path.
+- `connector.agent.gamma` - probability of taking a random action.
+- `connector.agent.temperature` - (`auto_explore` only) the temperature with which we draw an action from the action policy.
 
 `gamma` and `temperature` are used to create variance between the episodes. Without them (e.g. just using an argmax) the episodes will all be the same.
 
