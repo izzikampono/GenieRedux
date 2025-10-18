@@ -92,11 +92,12 @@ def main(cfg):
         connector_config_retro_act = config["connector_" + config["env"]]
 
         from generator.connector_retro_act import (
-            GameData,
             RetroActConnector,
             RetroActAutoExploreConnector,
             RetroActAgent57Connector,
         )
+        
+        from generator.utils.retro_act_game_data import GameData
 
         # Choose connector class by variant (normalize missing/legacy 'default' -> 'random')
         variant = connector_config_retro_act.get("variant", "random")

@@ -275,35 +275,25 @@ class MultiEnvironmentDataset(Dataset):
         )
 
         self.log = getLogger("MultiEnvironmentDataset", name_color="blue")
-
         paths = sorted(
             [path for path in Path(root_dpath).iterdir() if path.is_dir()],
             key=lambda x: x.name,
         )  # [:5]
 
         paths_selected = []
-        if whitelist is not None:
+        if whitelist is None:
+            paths_selected = paths
+        else:
             paths_whitelist = [
                 path for path in paths if path.name.split("_")[1] in whitelist
             ]
             paths_selected.extend(paths_whitelist)
 
-        if whitelist is None:
-            paths_no_whitelist = paths
-            whitelist_len = 0
-        else:
-            paths_no_whitelist = [
-                path for path in paths if path.name.split("_")[1] not in whitelist
-            ]
-            whitelist_len = len(whitelist)
-
         if n_envs > 0:
             if use_last_n:
-                paths_selected.extend(paths_no_whitelist[-n_envs + whitelist_len :])
+                paths_selected = paths_selected[-n_envs:]
             else:
-                paths_selected.extend(paths_no_whitelist[: n_envs - whitelist_len])
-        else:
-            paths_selected.extend(paths_no_whitelist)
+                paths_selected = paths_selected[:n_envs]
 
         if n_envs > 0 or whitelist is not None:
             paths = paths_selected

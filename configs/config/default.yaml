@@ -12,6 +12,11 @@ optimizer:
   warmup_steps: 10000
   decay_steps: 100000
 
+data:
+  view: null
+  genre: null
+  motion: null
+  platform: null
 
 train:
   dataset_root_dpath: ???

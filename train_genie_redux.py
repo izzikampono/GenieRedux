@@ -1,5 +1,6 @@
 import math
 import os
+from pathlib import Path
 
 # set the current working directory as the project root directory
 os.chdir(os.path.dirname(os.path.abspath(__file__)))
@@ -7,6 +8,7 @@ os.chdir(os.path.dirname(os.path.abspath(__file__)))
 import torch
 from accelerate import Accelerator
 from accelerate.utils import DistributedDataParallelKwargs
+from omegaconf import ListConfig, OmegaConf
 from prettytable import PrettyTable
 from torch.utils.data import Subset
 
@@ -15,10 +17,10 @@ from data.data import (
     MultiEnvironmentDataset,
     TransformsGenerator,
 )
+from data_generation.generator.utils.retro_act_game_data import GameData
 from models import construct_model
 from training import Trainer
 from utils.utils import debug
-from omegaconf import OmegaConf
 
 
 def count_parameters(model):
@@ -35,6 +37,76 @@ def count_parameters(model):
     pytorch_total_params = sum(p.numel() for p in model.parameters())
     print("Number of params in total: ", pytorch_total_params)
     return total_params
+
+
+def _normalize_filter(value):
+    if value is None:
+        return None
+    if isinstance(value, str):
+        return [value]
+    if isinstance(value, ListConfig):
+        return list(value)
+    if isinstance(value, (list, tuple, set)):
+        return list(value)
+    return [value]
+
+
+def resolve_game_whitelist(data_cfg):
+    view_filter = _normalize_filter(data_cfg["view"]) if "view" in data_cfg else None
+    motion_filter = (
+        _normalize_filter(data_cfg["motion"]) if "motion" in data_cfg else None
+    )
+    genre_filter = _normalize_filter(data_cfg["genre"]) if "genre" in data_cfg else None
+    platform_filter = (
+        _normalize_filter(data_cfg["platform"]) if "platform" in data_cfg else None
+    )
+
+    if (
+        view_filter is None
+        and motion_filter is None
+        and genre_filter is None
+        and platform_filter is None
+    ):
+        return None
+
+    annotation_path = (
+        Path(__file__).resolve().parent
+        / "data_generation"
+        / "annotations"
+        / "RetroAct_v0.1.csv"
+    )
+    if not annotation_path.exists():
+        raise FileNotFoundError(
+            "RetroAct annotation file 'RetroAct_v0.1.csv' not found in expected locations."
+        )
+
+    game_data = GameData(
+        annotation_fpath=str(annotation_path),
+        control_annotation_fpath=None,
+    )
+    selected_games = game_data.query(
+        view=view_filter,
+        motion=motion_filter,
+        genre=genre_filter,
+        game=None,
+        platform=platform_filter,
+    )
+    if len(selected_games) == 0:
+        raise ValueError(
+            "No games found for the provided data filters: "
+            f"view={view_filter}, motion={motion_filter}, "
+            f"genre={genre_filter}, platform={platform_filter}."
+        )
+
+    whitelist = [name.lower() for name in selected_games]
+
+    if len(whitelist) == 0:
+        raise ValueError(
+            "GameData filters produced titles that do not map to dataset directories. "
+            "Check annotation entries and dataset naming conventions."
+        )
+
+    return whitelist
 
 
 def run(args):
@@ -55,7 +127,9 @@ def run(args):
         have_tok = bool(getattr(args, "tokenizer_fpath", None))
 
         if not have_model and not have_tok:
-            raise ValueError("Provide at least one of 'model_fpath' or 'tokenizer_fpath'.")
+            raise ValueError(
+                "Provide at least one of 'model_fpath' or 'tokenizer_fpath'."
+            )
 
         if have_model and not os.path.exists(args.model_fpath):
             raise FileNotFoundError(
@@ -75,7 +149,9 @@ def run(args):
         if have_tok:
             tok_state = torch.load(args.tokenizer_fpath, map_location="cpu")
             if not hasattr(model, "tokenizer"):
-                raise AttributeError("Model does not expose a 'tokenizer' attribute for loading.")
+                raise AttributeError(
+                    "Model does not expose a 'tokenizer' attribute for loading."
+                )
             model.tokenizer.load_state_dict(tok_state["model"])
             del tok_state
     else:
@@ -99,6 +175,15 @@ def run(args):
 
     transforms = TransformsGenerator.get_final_transforms(model.image_size, None)
 
+    game_whitelist = resolve_game_whitelist(args.data)
+
+    if game_whitelist is not None and accelerator.is_main_process:
+        print(
+            f"GameData filtering active: {len(game_whitelist)} games selected "
+            f"using filters view={args.data['view']}, motion={args.data['motion']}, "
+            f"genre={args.data['genre']}, platform={args.data['platform']}."
+        )
+
     def get_data_handlers(n_workers=8, n_envs=0, n_total_samples=10000):
         train_ds_mev = MultiEnvironmentDataset(
             dataset_folder,
@@ -112,6 +197,7 @@ def run(args):
             cache_dpath=args.train.cache_dpath,
             n_workers=n_workers,
             n_envs=n_envs,
+            whitelist=game_whitelist,
         )
 
         n_samples_valid = math.ceil(n_total_samples / train_ds_mev.n_datasets)
@@ -130,6 +216,7 @@ def run(args):
             n_envs=n_envs,
             n_samples=n_samples_valid,
             source_dataset=train_ds_mev,
+            whitelist=game_whitelist,
         )
         valid_ds_mev = Subset(valid_ds_mev, range(n_total_samples))
 
@@ -213,6 +300,8 @@ def run(args):
 
     model.train()
     trainer.train()
+
+
 import hydra
 from omegaconf import DictConfig
 

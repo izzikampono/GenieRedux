@@ -8,6 +8,9 @@ defaults:
 
 model: genie_redux_guided
 
+data:
+  genre: [pl]
+
 dynamics:
   use_token: true
   is_guided: true

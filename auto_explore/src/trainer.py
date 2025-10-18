@@ -8,7 +8,8 @@ import sys
 import time
 from typing import Any, Dict, Optional, Tuple
 
-from data_generation.generator.connector_retro_act import GameData, make_retro
+from data_generation.generator.connector_retro_act import make_retro
+from data_generation.generator.utils.retro_act_game_data import GameData
 from hydra.utils import instantiate
 from omegaconf import DictConfig, OmegaConf
 import torch
