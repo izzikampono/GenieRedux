@@ -41,6 +41,23 @@ class LinearWarmup_CosineAnnealing:
     First one is for a linear warmup.
     Second one is for a cosine annealing."""
 
+    @staticmethod
+    def _sync_scheduler_state(scheduler, num_steps):
+        """Align a torch scheduler with the number of completed steps without changing the LR."""
+
+        if num_steps > 0:
+            scheduler.last_epoch = num_steps - 1
+        else:
+            scheduler.last_epoch = -1
+
+        if hasattr(scheduler, "_step_count"):
+            scheduler._step_count = num_steps
+
+        if hasattr(scheduler, "_last_lr"):
+            scheduler._last_lr = [
+                group["lr"] for group in scheduler.optimizer.param_groups
+            ]
+
     def __init__(
         self,
         optimizer,  # optimizer to schedule
@@ -74,3 +91,16 @@ class LinearWarmup_CosineAnnealing:
             self.scheduler_cosine.step()
 
         return
+
+    def set_step(self, completed_steps: int):
+        """Advance internal scheduler counters to match previously completed steps."""
+
+        if completed_steps is None:
+            return
+
+        completed_steps = max(int(completed_steps), 0)
+        warmup_steps = min(completed_steps, self.switch)
+        cosine_steps = max(completed_steps - self.switch, 0)
+
+        self._sync_scheduler_state(self.scheduler_linear, warmup_steps)
+        self._sync_scheduler_state(self.scheduler_cosine, cosine_steps)

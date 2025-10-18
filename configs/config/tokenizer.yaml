@@ -18,3 +18,4 @@ train:
   n_total_samples: 50
   n_envs: 0
   max_valid_size: 50
+  resume_ckpt: "no"

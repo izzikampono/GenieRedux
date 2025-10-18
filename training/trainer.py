@@ -377,6 +377,8 @@ class Trainer(nn.Module):
         if not weights_only:
             self.step = data["step"]
             self.optim.load_state_dict(data["optim"])
+            if hasattr(self, "scheduler_optim"):
+                self.scheduler_optim.set_step(self.step)
 
         if exists(self.accelerator.scaler) and exists(data["scaler"]):
             self.accelerator.scaler.load_state_dict(data["scaler"])
