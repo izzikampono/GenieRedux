@@ -127,7 +127,7 @@ def main(cfg):
 
         if action_map == "default":
             action_map = {
-                "ACTION_JUMP": "jump",
+                "ACTION_PRIMARY": "jump",
                 "DOWN": "none|crouch|climb",
                 "UP": "climb|none",
                 "LEFT": "left",

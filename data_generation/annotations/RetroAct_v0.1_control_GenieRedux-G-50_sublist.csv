@@ -1,4 +1,4 @@
-game,RIGHT,LEFT,UP,DOWN,ACTION_JUMP,ACTION_SECONDARY,transition,Background_Changes
+game,RIGHT,LEFT,UP,DOWN,ACTION_PRIMARY,ACTION_SECONDARY,transition,Background_Changes
 adventureislandii-nes,right,left,none,none,jump,none,YES,YES
 supermariobros-nes,right,left,none,crouch,jump,none,YES,YES
 fireandice-sms,right,left,climb,crouch,jump,shoot,NO,YES

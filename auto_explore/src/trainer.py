@@ -236,7 +236,7 @@ class Trainer:
             pass
 
         # Define discrete action set once, used consistently by env and agent
-        valid_action_combos = ["RIGHT", "LEFT", "UP", "DOWN", "ACTION_JUMP"]
+        valid_action_combos = ["RIGHT", "LEFT", "UP", "DOWN", "ACTION_PRIMARY"]
 
         def create_env(cfg_env, num_envs, transform=None):
             games = cfg.collection.games

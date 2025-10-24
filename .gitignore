@@ -6,6 +6,7 @@ datasets
 datasets/*
 data_generation/datasets
 data_generation/datasets/*
+data_generation/annotations/previews/*
 wandb
 wandb/*
 debug

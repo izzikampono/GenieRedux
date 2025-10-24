@@ -216,7 +216,7 @@ class ActorCritic(nn.Module):
             game = cfg_env.id
             max_episode_steps = cfg_env.max_episode_steps
             frame_skip = cfg_env.frame_skip
-            valid_action_combos = ["UP", "DOWN", "RIGHT", "LEFT", "ACTION_JUMP"]
+            valid_action_combos = ["UP", "DOWN", "RIGHT", "LEFT", "ACTION_PRIMARY"]
 
             env_fn = partial(
                 make_retro,
