@@ -119,6 +119,8 @@ class PEG(nn.Module):
         super().__init__()
         self.causal = causal
         self.dsconv = nn.Conv3d(dim, dim, 3, groups=dim)
+        # Ensure gradients follow the same memory layout as parameters for DDP
+        self.dsconv.weight.register_hook(lambda grad: grad.contiguous())
 
     @beartype
     def forward(
