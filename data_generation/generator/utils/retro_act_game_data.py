@@ -6,6 +6,8 @@ class GameData:
         self,
         annotation_fpath: str = "annotations/RetroAct_v0.1.csv",
         control_annotation_fpath: str = "annotations/RetroAct_v0.1_control_GenieRedux-G-50_sublist.csv",
+        exclude_blinking: bool = False,
+        exclude_delayed: bool = False,
         enable_sort=False,
     ):
         self.annotation_fpath = annotation_fpath
@@ -30,10 +32,6 @@ class GameData:
             if enable_sort:
                 self.df_controls = self.df_controls.sort_values(by="game")
 
-            # convert the transition key from YES and NO values to 1 and 0
-            self.df_controls["transition"] = self.df_controls["transition"].apply(
-                lambda x: 1 if x == "YES" else 0,
-            )
             # join the two dataframes on the game column but the game column in df is with some capitilized letters while in df_controls it is all lower case. After joining keep the capitalization
             # copy the game column in df to a new one called game_upper
 
@@ -45,14 +43,23 @@ class GameData:
             )
             self.df["game"] = self.df["game_upper"]
             self.df = self.df.drop(columns=["game_upper"])
+
+            if exclude_blinking and "blinking" in self.df.columns:
+                self.df = self.df[
+                    ~self.df["blinking"].fillna("").str.upper().eq("YES")
+                ]
+            if exclude_delayed and "delayed" in self.df.columns:
+                self.df = self.df[
+                    ~self.df["delayed"].fillna("").str.upper().eq("YES")
+                ]
         else:
             self.enable_controls = False
 
     def filter(self, action_map):
         # clean actions
         if self.enable_controls:
-            # remove all entries with ACTION_JUMP different than jump
-            self.df = self.df[self.df["ACTION_JUMP"] == "jump"]
+            # remove all entries with ACTION_PRIMARY different than jump
+            self.df = self.df[self.df["ACTION_PRIMARY"] == "jump"]
             # remove all entries with DOWN different than down crouch, climb down or  climb contained in the entry
             self.df = self.df[self.df["DOWN"].str.contains("none|crouch|climb")]
             # remove all entries with UP different than climb or none

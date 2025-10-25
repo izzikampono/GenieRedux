@@ -2,7 +2,7 @@ import argparse
 import csv
 import os
 from pathlib import Path
-from tkinter import Button, Entry, Frame, Label, Tk
+from tkinter import BooleanVar, Button, Checkbutton, Entry, Frame, Label, Tk
 
 from PIL import Image, ImageSequence, ImageTk
 
@@ -14,6 +14,8 @@ CONTROL_ACTIONS = [
     "ACTION_PRIMARY",
     "ACTION_SECONDARY",
 ]
+
+FLAG_FIELDS = ["blinking", "delayed"]
 
 DEFAULT_ACTION_VALUES = {
     "RIGHT": "right",
@@ -30,10 +32,18 @@ def normalize_game_name(name: str) -> str:
 
 
 class AnnotationTool:
-    def __init__(self, preview_dpath, annotation_fpath, edit_only=False, only_game: str | None = None):
+    def __init__(
+        self,
+        preview_dpath,
+        annotation_fpath,
+        edit_only=False,
+        new_only: bool = False,
+        only_game: str | None = None,
+    ):
         self.preview_dpath = Path(preview_dpath)
         self.annotation_fpath = Path(annotation_fpath)
         self.edit_only = edit_only
+        self.new_only = new_only
         self.only_game = normalize_game_name(only_game) if only_game else None
 
         self.game_previews: dict[str, dict[str, Path]] = {}
@@ -58,6 +68,19 @@ class AnnotationTool:
 
         self.preview_container = Frame(self.root)
         self.preview_container.pack(padx=10, pady=10)
+
+        self.flag_frame = Frame(self.root)
+        self.flag_frame.pack(pady=(0, 10))
+
+        self.blink_var = BooleanVar(value=False)
+        self.delayed_var = BooleanVar(value=False)
+
+        Checkbutton(
+            self.flag_frame, text="Blinking", variable=self.blink_var
+        ).pack(side="left", padx=10)
+        Checkbutton(
+            self.flag_frame, text="Delayed actions", variable=self.delayed_var
+        ).pack(side="left", padx=10)
 
         self.next_button = Button(self.root, text="Save & Next", command=self.next_game)
         self.next_button.pack(pady=(0, 10))
@@ -88,6 +111,9 @@ class AnnotationTool:
         for action in CONTROL_ACTIONS:
             if action not in self.fieldnames:
                 self.fieldnames.append(action)
+        for flag in FLAG_FIELDS:
+            if flag not in self.fieldnames:
+                self.fieldnames.append(flag)
 
     def write_annotations(self):
         self.annotation_fpath.parent.mkdir(parents=True, exist_ok=True)
@@ -178,6 +204,14 @@ class AnnotationTool:
             ]
             self.game_previews = {name: self.game_previews[name] for name in filtered_games}
             self.games = filtered_games
+        elif self.new_only:
+            filtered_games = [
+                game_name
+                for game_name in self.games
+                if normalize_game_name(game_name) not in self.annotations
+            ]
+            self.game_previews = {name: self.game_previews[name] for name in filtered_games}
+            self.games = filtered_games
 
     def stop_animations(self):
         for job in self.animation_jobs.values():
@@ -203,6 +237,18 @@ class AnnotationTool:
         self.game_label.config(text=game_name)
 
         existing_row = self.annotations.get(game_key)
+        blink_value = (
+            existing_row.get("blinking", "").strip().upper() == "YES"
+            if existing_row
+            else False
+        )
+        delayed_value = (
+            existing_row.get("delayed", "").strip().upper() == "YES"
+            if existing_row
+            else False
+        )
+        self.blink_var.set(blink_value)
+        self.delayed_var.set(delayed_value)
 
         self.action_entries.clear()
 
@@ -305,6 +351,8 @@ class AnnotationTool:
             entry = self.action_entries.get(action)
             value = entry.get().strip() if entry else ""
             row[action] = value
+        row["blinking"] = "YES" if self.blink_var.get() else "NO"
+        row["delayed"] = "YES" if self.delayed_var.get() else "NO"
 
         self.write_annotations()
 
@@ -345,16 +393,25 @@ if __name__ == "__main__":
         help="Only load games already present in the control annotation file.",
     )
     parser.add_argument(
+        "--new",
+        action="store_true",
+        help="Only load games that are missing from the control annotation file.",
+    )
+    parser.add_argument(
         "--game",
         default=None,
         help="Annotate only the specified game (case-insensitive).",
     )
     args = parser.parse_args()
 
+    if args.edit and args.new:
+        parser.error("Specify only one of '--edit' or '--new'.")
+
     tool = AnnotationTool(
         args.preview_dpath,
         args.annotation_fpath,
         edit_only=args.edit,
+        new_only=args.new,
         only_game=args.game,
     )
     tool.run()
