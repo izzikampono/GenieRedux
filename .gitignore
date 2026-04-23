@@ -15,6 +15,14 @@ evaluate/*
 evaluation*/*
 cache
 cache/*
+roms
+roms/*
+
+.claude
+.vscode
+.vexp
+
+notes_for_snellius.txt
 
 finetune_bs*
 finetune_bs*/*
