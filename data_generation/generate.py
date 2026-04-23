@@ -8,6 +8,21 @@ from omegaconf import OmegaConf
 import hydra
 
 
+def filter_games_with_available_roms(games):
+    """Keep only games that currently have an imported ROM in stable-retro."""
+    import retro.data as retro_data
+
+    available = []
+    missing = []
+    for game in games:
+        try:
+            retro_data.get_romfile_path(game, retro_data.Integrations.STABLE)
+            available.append(game)
+        except FileNotFoundError:
+            missing.append(game)
+
+    return available, missing
+
 def run_env(config, connector_config):
     connector_class_name = connector_config["classname"]
     del connector_config["classname"]
