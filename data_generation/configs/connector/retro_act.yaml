@@ -6,7 +6,7 @@ game: all
 n_skip_frames: 4
 n_skip_start_frames: 0
 image_size: [64, 64]
-valid_action_combos: [RIGHT, LEFT, UP, DOWN, ACTION_JUMP]
+valid_action_combos: [RIGHT, LEFT, UP, DOWN, ACTION_JUMP, ACTION_SECONDARY]
 n_workers: 12
 view: null
 genre: [pl]
