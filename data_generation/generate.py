@@ -167,6 +167,9 @@ def main(cfg):
         # Optionally sort alphabetically and limit to first N titles when requested
         limit_games = connector_config_retro_act.get("limit_games", None)
         selected_games = sorted(selected_games)
+        selected_games, missing_roms = filter_games_with_available_roms(selected_games)
+        if missing_roms:
+            print(f"Skipping {len(missing_roms)} games with missing ROMs: {missing_roms}")
         if isinstance(limit_games, int) and limit_games > 0:
             selected_games = selected_games[:limit_games]
 
