@@ -279,6 +279,7 @@ class StochasticFrameSkip(gym.Wrapper):
         terminated = False
         truncated = False
         totrew = 0
+        frames = []
         for i in range(self.n):
             # First step after reset, use action
             if self.curac is None:
@@ -290,12 +291,7 @@ class StochasticFrameSkip(gym.Wrapper):
             # Second substep, new action definitely kicks in
             elif i == 1:
                 self.curac = ac
-            if self.supports_want_render and i < self.n - 1:
-                ob, rew, terminated, truncated, info = self.env.step(
-                    self.curac,
-                    want_render=False,
-                )
-            elif self.supports_want_render:
+            if self.supports_want_render:
                 ob, rew, terminated, truncated, info = self.env.step(
                     self.curac,
                     want_render=self.want_render,
@@ -303,9 +299,11 @@ class StochasticFrameSkip(gym.Wrapper):
             else:
                 ob, rew, terminated, truncated, info = self.env.step(self.curac)
             totrew += rew
+            frames.append(ob)
 
             if terminated or truncated:
                 break
+        info["frames"] = frames
         return ob, totrew, terminated, truncated, info
 
 
@@ -518,39 +516,49 @@ class RetroActConnector(BaseConnector):
             if session_end:
                 return
 
-        for frame_id in range(n_steps_max):
-            action = env.action_space.sample()
+        actual_frame_id = 0
+        for step_id in range(n_steps_max):
+            if step_id % 2 == 0:
+                action = action_noop
+            else:
+                action = env.action_space.sample()
             ob, totrew, terminated, truncated, info = env.step(action)
-            frame = ob
-            session_end = frame_id == n_steps_max - 1 or terminated or truncated
-            extras = info
-            tracking_background_mask = None
+            sub_frames = info.pop("frames", [ob])
+            session_end = step_id == n_steps_max - 1 or terminated or truncated
+            tracker_failed = False
 
-            if self.use_tracker:
-                try:
-                    frame, tracking_background_mask = apply_tracker(
-                        self.tracker, frame, box_size
-                    )
-                except:
-                    print(f"Failed to track object in frame {frame_id}")
-                    break
+            for sub_idx, frame in enumerate(sub_frames):
+                is_last_sub = sub_idx == len(sub_frames) - 1
+                tracking_background_mask = None
 
-            if self.image_size is not None:
-                frame = pad_to_match_aspect_ratio(frame, self.image_size)
-                frame = cv2.resize(frame, self.image_size, interpolation=cv2.INTER_AREA)
+                if self.use_tracker:
+                    try:
+                        frame, tracking_background_mask = apply_tracker(
+                            self.tracker, frame, box_size
+                        )
+                    except:
+                        print(f"Failed to track object in frame {actual_frame_id}")
+                        tracker_failed = True
+                        break
 
-            extras["tracking_background_mask"] = tracking_background_mask
+                if self.image_size is not None:
+                    frame = pad_to_match_aspect_ratio(frame, self.image_size)
+                    frame = cv2.resize(frame, self.image_size, interpolation=cv2.INTER_AREA)
 
-            yield {
-                "src_frame_id": frame_id - 1,
-                "tgt_frame_id": frame_id,
-                "frame": frame,
-                "action": action.tolist(),
-                "session_end": session_end,
-                "extras": extras,
-            }
+                extras = dict(info) if is_last_sub else {}
+                extras["tracking_background_mask"] = tracking_background_mask
 
-            if session_end:
+                yield {
+                    "src_frame_id": actual_frame_id - 1,
+                    "tgt_frame_id": actual_frame_id,
+                    "frame": frame,
+                    "action": action.tolist(),
+                    "session_end": session_end and is_last_sub,
+                    "extras": extras,
+                }
+                actual_frame_id += 1
+
+            if tracker_failed or session_end:
                 break
 
 
@@ -622,7 +630,8 @@ class RetroActAutoExploreConnector(RetroActConnector):
         else:
             box_size = 0
 
-        for frame_id in range(n_steps_max):
+        actual_frame_id = 0
+        for step_id in range(n_steps_max):
             # Prepare observation tensor (1, 3, H, W) in [0,1]
             obs_t = torch.from_numpy(observation).to(device)
             if obs_t.dtype != torch.float32:
@@ -643,36 +652,41 @@ class RetroActAutoExploreConnector(RetroActConnector):
             action[act_idx] = 1
 
             observation, reward, terminated, truncated, info = env.step(action)
-            frame = observation
-            session_end = frame_id == n_steps_max - 1 or terminated or truncated
+            sub_frames = info.pop("frames", [observation])
+            session_end = step_id == n_steps_max - 1 or terminated or truncated
+            tracker_failed = False
 
-            extras = dict(info)
-            tracking_background_mask = None
-            if self.use_tracker:
-                try:
-                    frame, tracking_background_mask = apply_tracker(self.tracker, frame, box_size)
-                except Exception:
-                    # If tracking fails, end this session gracefully
-                    break
+            for sub_idx, frame in enumerate(sub_frames):
+                is_last_sub = sub_idx == len(sub_frames) - 1
+                tracking_background_mask = None
 
-            if self.image_size is not None:
-                frame = pad_to_match_aspect_ratio(frame, self.image_size)
-                frame = cv2.resize(frame, self.image_size, interpolation=cv2.INTER_AREA)
+                if self.use_tracker:
+                    try:
+                        frame, tracking_background_mask = apply_tracker(self.tracker, frame, box_size)
+                    except Exception:
+                        tracker_failed = True
+                        break
 
-            extras["tracking_background_mask"] = tracking_background_mask
-            extras["temperature"] = temperature
-            extras["gamma"] = gamma
+                if self.image_size is not None:
+                    frame = pad_to_match_aspect_ratio(frame, self.image_size)
+                    frame = cv2.resize(frame, self.image_size, interpolation=cv2.INTER_AREA)
 
-            yield {
-                "src_frame_id": frame_id - 1,
-                "tgt_frame_id": frame_id,
-                "frame": frame,
-                "action": action.tolist(),
-                "session_end": session_end,
-                "extras": extras,
-            }
+                extras = dict(info) if is_last_sub else {}
+                extras["tracking_background_mask"] = tracking_background_mask
+                extras["temperature"] = temperature
+                extras["gamma"] = gamma
 
-            if session_end:
+                yield {
+                    "src_frame_id": actual_frame_id - 1,
+                    "tgt_frame_id": actual_frame_id,
+                    "frame": frame,
+                    "action": action.tolist(),
+                    "session_end": session_end and is_last_sub,
+                    "extras": extras,
+                }
+                actual_frame_id += 1
+
+            if tracker_failed or session_end:
                 break
 
 
@@ -779,7 +793,8 @@ class RetroActAgent57Connector(RetroActConnector):
         else:
             box_size = 0
 
-        for frame_id in range(n_steps_max):
+        actual_frame_id = 0
+        for step_id in range(n_steps_max):
             # Prepare 84x84 grayscale observation for the agent
             ob_gray = cv2.cvtColor(observation, cv2.COLOR_RGB2GRAY)
             ob_gray = cv2.resize(ob_gray, (84, 84), interpolation=cv2.INTER_AREA)[None, ...]
@@ -799,35 +814,41 @@ class RetroActAgent57Connector(RetroActConnector):
             action = np.eye(action_dim, dtype=np.uint8)[a_t]
 
             observation, reward, done, truncated, info = env.step(action)
-            frame = observation
-            session_end = frame_id == n_steps_max - 1 or done or truncated
+            sub_frames = info.pop("frames", [observation])
+            session_end = step_id == n_steps_max - 1 or done or truncated
+            tracker_failed = False
 
-            extras = dict(info)
-            tracking_background_mask = None
-            if self.use_tracker:
-                try:
-                    frame, tracking_background_mask = apply_tracker(self.tracker, frame, box_size)
-                except Exception:
-                    break
+            for sub_idx, frame in enumerate(sub_frames):
+                is_last_sub = sub_idx == len(sub_frames) - 1
+                tracking_background_mask = None
 
-            if self.image_size is not None:
-                frame = pad_to_match_aspect_ratio(frame, self.image_size)
-                frame = cv2.resize(frame, self.image_size, interpolation=cv2.INTER_AREA)
+                if self.use_tracker:
+                    try:
+                        frame, tracking_background_mask = apply_tracker(self.tracker, frame, box_size)
+                    except Exception:
+                        tracker_failed = True
+                        break
 
-            extras["tracking_background_mask"] = tracking_background_mask
-            extras["gamma"] = gamma
+                if self.image_size is not None:
+                    frame = pad_to_match_aspect_ratio(frame, self.image_size)
+                    frame = cv2.resize(frame, self.image_size, interpolation=cv2.INTER_AREA)
 
-            yield {
-                "src_frame_id": frame_id - 1,
-                "tgt_frame_id": frame_id,
-                "frame": frame,
-                "action": action.tolist(),
-                "session_end": session_end,
-                "extras": extras,
-            }
+                extras = dict(info) if is_last_sub else {}
+                extras["tracking_background_mask"] = tracking_background_mask
+                extras["gamma"] = gamma
+
+                yield {
+                    "src_frame_id": actual_frame_id - 1,
+                    "tgt_frame_id": actual_frame_id,
+                    "frame": frame,
+                    "action": action.tolist(),
+                    "session_end": session_end and is_last_sub,
+                    "extras": extras,
+                }
+                actual_frame_id += 1
 
             first_step = False
-            if session_end:
+            if tracker_failed or session_end:
                 # Flush final done state for the agent57 actor, if needed
                 if done:
                     ob_gray = cv2.cvtColor(observation, cv2.COLOR_RGB2GRAY)

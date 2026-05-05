@@ -152,6 +152,7 @@ class DatasetFileStructure:
 class OutputMode:
     FRAME = "frame"
     VIDEO = "video"
+    BOTH = "both"  # write per-frame JPEGs and MP4 simultaneously
 
 
 class EnvironmentDataGenerator:
@@ -201,11 +202,12 @@ class EnvironmentDataGenerator:
         ids,
     ):
         env_connector = connector_class_name(connector_config)
+        render_fps = connector_config.get("n_skip_frames", 1)
         for instance_id, session_id in tqdm(ids):
             actions = []
             video_stream = None
 
-            if output_mode == OutputMode.VIDEO:
+            if output_mode in (OutputMode.VIDEO, OutputMode.BOTH):
                 video_fpath = fs.get_video_fpath(
                     instance_id,
                     session_id,
@@ -213,21 +215,13 @@ class EnvironmentDataGenerator:
                     make_dirs=True,
                 )
                 video_container = av.open(video_fpath, mode="w")
-                # video_stream = video_container.add_stream(
-                #     "libx264",
-                #     rate=1,
-                #     options={
-                #         "crf": "17",  # sweet-spot
-                #         "preset": "slow",
-                #     },
-                # )
                 video_stream = video_container.add_stream(
                     "libx264",
-                    rate=1,
+                    rate=render_fps,
                     options={
-                        "crf": "0",  # means lossless
+                        "crf": "0",  # lossless
                         "preset": "veryslow",
-                        "pix_fmt": "yuv444p",  # 4:4:4 keeps every chroma sample
+                        "pix_fmt": "yuv444p",
                         "profile": "high444",
                     },
                 )
@@ -280,29 +274,21 @@ class EnvironmentDataGenerator:
                 fs.get_instance_dpath(instance_id, make_dirs=True)
                 fs.get_session_dpath(instance_id, session_id=session_id, make_dirs=True)
 
-                if output_mode == OutputMode.FRAME:
+                if output_mode in (OutputMode.FRAME, OutputMode.BOTH):
                     frame_fpath = fs.get_frame_fpath(
                         instance_id,
                         session_id,
                         tgt_frame_id,
                         make_dirs=True,
                     )
-
                     cv2.imwrite(frame_fpath, frame[:, :, ::-1])
-                elif output_mode == OutputMode.VIDEO:
-                    # In VIDEO mode, do not write per-frame JPEGs; only encode to the MP4.
-                    frame = av.VideoFrame.from_ndarray(frame, format="rgb24")
 
-                    if video_stream is not None:
-                        video_container.mux(video_stream.encode(frame))
-                    else:
-                        raise ValueError(
-                            "Video stream is not initialized. "
-                            "Make sure to set output_mode to VIDEO."
-                        )
+                if output_mode in (OutputMode.VIDEO, OutputMode.BOTH):
+                    av_frame = av.VideoFrame.from_ndarray(frame, format="rgb24")
+                    video_container.mux(video_stream.encode(av_frame))
 
-            if output_mode == OutputMode.VIDEO:
-                video_container.mux(video_stream.encode(None))  # Flush the stream
+            if output_mode in (OutputMode.VIDEO, OutputMode.BOTH):
+                video_container.mux(video_stream.encode(None))  # flush
                 video_container.close()
 
             actions_fpath = fs.get_action_fpath(
@@ -326,13 +312,16 @@ class EnvironmentDataGenerator:
             for session_id in range(self.n_sessions)
         ]
         # partition worker_params into n_workers partitions. the parameters per worker have to be sequential
-        chunk_size = len(worker_params) // self.n_workers
+        # cap workers so chunk_size is always >= 1 (avoids range(0, N, 0) crash when n_workers > n_sessions)
+        import math
+        n_workers = min(self.n_workers, len(worker_params))
+        chunk_size = math.ceil(len(worker_params) / n_workers)
         worker_params_chunks = [
             worker_params[i : i + chunk_size]
             for i in range(0, len(worker_params), chunk_size)
         ]
         assert sum([len(chunk) for chunk in worker_params_chunks]) == len(worker_params)
-        pool = multiprocessing.Pool(self.n_workers)
+        pool = multiprocessing.Pool(n_workers)
         gen_data = functools.partial(
             EnvironmentDataGenerator.generate_data,
             self.fs,
