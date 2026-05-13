@@ -61,6 +61,159 @@ def convert_image_to_fn(img_type, image):
     return image
 
 
+class ActionResolver:
+    def __init__(
+        self,
+        game: str | None,
+        action_captions: list | None,
+        annotation_control_fpath: str | None,
+        dataset_root: Path | None,
+        logger=None,
+    ):
+        self.game = (game or "").strip()
+        self.logger = logger
+        self.dataset_root = Path(dataset_root) if dataset_root else None
+        self.annotation_control_fpath = annotation_control_fpath
+        labels_source = action_captions
+        self.action_labels = [
+            label.upper() for label in self._normalize_labels(labels_source)
+        ]
+        self.action_names = self._load_action_names()
+
+    @staticmethod
+    def _normalize_label(label):
+        if isinstance(label, str):
+            return label.strip()
+        if isinstance(label, (list, tuple)):
+            parts = [str(part).strip() for part in label if str(part).strip()]
+            return "+".join(parts)
+        return str(label).strip()
+
+    def _normalize_labels(self, combos):
+        if not combos:
+            return []
+        return [self._normalize_label(combo) for combo in combos]
+
+    def _resolve_annotation_path(self) -> Path | None:
+        if not self.annotation_control_fpath:
+            return None
+
+        rel_path = Path(self.annotation_control_fpath)
+        candidates: list[Path] = []
+
+        if rel_path.is_absolute():
+            candidates.append(rel_path)
+        else:
+            repo_root = Path(__file__).resolve().parents[1]
+            candidates.extend(
+                [
+                    repo_root / rel_path,
+                    Path.cwd() / rel_path,
+                ]
+            )
+            if self.dataset_root is not None:
+                candidates.extend(
+                    [
+                        self.dataset_root / rel_path,
+                        self.dataset_root.parent / rel_path,
+                    ]
+                )
+
+        for candidate in candidates:
+            if candidate.exists():
+                return candidate
+
+        return None
+
+    def _load_action_names(self) -> list[str] | None:
+        if not self.game:
+            return None
+
+        control_path = self._resolve_annotation_path()
+        if control_path is None:
+            if self.logger is not None and self.annotation_control_fpath:
+                self.logger.w(
+                    f"Control annotation file '{self.annotation_control_fpath}' not found for game '{self.game}'."
+                )
+            return None
+
+        try:
+            df_controls = pd.read_csv(control_path, delimiter=",")
+        except Exception as exc:  # noqa: BLE001
+            if self.logger is not None:
+                self.logger.w(
+                    f"Failed to read control annotations from '{control_path}': {type(exc).__name__}: {exc}"
+                )
+            return None
+
+        if "game" not in df_controls.columns:
+            if self.logger is not None:
+                self.logger.w(
+                    f"Control annotation file '{control_path}' missing 'game' column."
+                )
+            return None
+
+        game_mask = df_controls["game"].str.lower() == self.game.lower()
+        if not game_mask.any():
+            if self.logger is not None:
+                self.logger.w(
+                    f"No control annotations found for game '{self.game}' in '{control_path}'."
+                )
+            return None
+
+        row = df_controls.loc[game_mask].iloc[0]
+        labels = self.action_labels or []
+        resolved: list[str] = []
+
+        for idx, label in enumerate(labels):
+            candidates = {
+                label,
+                label.upper(),
+                label.lower(),
+            }
+            normalized = self._normalize_label(label)
+            candidates.update({normalized, normalized.upper(), normalized.lower()})
+
+            value = None
+            for candidate in candidates:
+                if candidate in row.index:
+                    cell = row[candidate]
+                    if isinstance(cell, str) and cell.strip() != "":
+                        value = cell.strip()
+                    elif pd.notna(cell):
+                        value = str(cell).strip()
+                    if value:
+                        break
+
+            if value is None:
+                value = normalized if normalized != "" else str(idx)
+
+            resolved.append(value)
+
+        return resolved if resolved else None
+
+    def indices_to_action_names(self, indices: list[int]) -> list[str]:
+        names: list[str] = []
+        labels = self.action_labels
+        resolved = self.action_names
+
+        for idx in indices:
+            name = None
+            if resolved is not None and idx < len(resolved):
+                candidate = resolved[idx]
+                if isinstance(candidate, str) and candidate.strip():
+                    name = candidate
+            if name is None and idx < len(labels):
+                candidate = labels[idx]
+                if isinstance(candidate, str) and candidate.strip():
+                    name = candidate
+            if name is None:
+                name = str(idx)
+            names.append(name)
+
+        return names
+
+
 # image related helpers functions and dataset
 
 
@@ -243,6 +396,7 @@ class MultiEnvironmentDataset(Dataset):
         whitelist: list[str] = None,
         n_samples: int = -1,
         n_actions: int = -1,
+        annotation_control_fpath: str | None = None,
     ) -> None:
         """
         Initializes the Data class.
@@ -270,8 +424,8 @@ class MultiEnvironmentDataset(Dataset):
         """
         use_last_n = n_envs < 0
         n_envs = abs(n_envs)
-        assert n_envs == 0 or whitelist is None or len(whitelist) <= n_envs, (
-            "Whitelist length should be less than n_envs"
+        assert n_envs == 0 or whitelist is None or n_envs <= len(whitelist), (
+            "Whitelist length should be more than n_envs"
         )
 
         self.log = getLogger("MultiEnvironmentDataset", name_color="blue")
@@ -332,6 +486,7 @@ class MultiEnvironmentDataset(Dataset):
                     cache_dpath=cache_dpath,
                     occlusion_mask=occlusion_mask,
                     source_dataset=source_dataset,
+                    annotation_control_fpath=annotation_control_fpath,
                 )
             except KeyError as e:
                 self.log.e(f"KeyError loading dataset from {path}: {e}")
@@ -344,10 +499,18 @@ class MultiEnvironmentDataset(Dataset):
 
             return dataset
 
-        with ThreadPool(n_workers) as pool:
-            self.datasets = pool.starmap(
-                create_environment_dataset, [(path, i) for i, path in enumerate(paths)]
-            )
+        if n_workers == 0:
+            self.datasets = []
+            self.datasets = []
+            for i, path in enumerate(paths):
+                dataset = create_environment_dataset(path, i)
+                self.datasets.append(dataset)
+        else:
+            with ThreadPool(n_workers) as pool:
+                self.datasets = pool.starmap(
+                    create_environment_dataset,
+                    [(path, i) for i, path in enumerate(paths)],
+                )
         self.datasets = [dataset for dataset in self.datasets if dataset is not None]
 
         if len(self.datasets) == 0:
@@ -373,7 +536,6 @@ class MultiEnvironmentDataset(Dataset):
         # find out in which range in cummulative size the idx falls in
         dataset_id = np.argmax(self.cummulative_size > idx)
         new_idx = idx - self.cummulative_size[dataset_id - 1] if dataset_id > 0 else idx
-        # breakpoint()
         try:
             item = self.datasets[dataset_id][new_idx]
         except IndexError as e:
@@ -391,6 +553,15 @@ class MultiEnvironmentDataset(Dataset):
 
 
 class EnvironmentDataset(Dataset):
+    DEFAULT_ACTION_NAMES = {
+        "RIGHT": "right",
+        "LEFT": "left",
+        "UP": "up",
+        "DOWN": "down",
+        "ACTION_PRIMARY": "jump",
+        "ACTION_JUMP": "jump",
+    }
+
     __DATASET_SPLIT = {
         "train": [0, 0.9],
         "validation": [0.9, 0.99],
@@ -416,6 +587,7 @@ class EnvironmentDataset(Dataset):
         cache_dpath: str = "cache",
         occlusion_mask: np.ndarray | None = None,
         source_dataset: Optional["EnvironmentDataset"] | None = None,
+        annotation_control_fpath: str | None = None,
     ) -> None:
         """
         Initializes the Data class.
@@ -433,6 +605,7 @@ class EnvironmentDataset(Dataset):
             instance_filter (optional): A dict of acceptable session properties to use. Defaults to None.
         """
 
+        self.root_dpath = Path(root_dpath)
         self.seq_length_input = seq_length_input
         self.seq_length_current = seq_length_input
         self.seq_step = seq_step
@@ -462,6 +635,56 @@ class EnvironmentDataset(Dataset):
             else Path(root_dpath).name
         )
         self.actions_shape = self.info["action_space"]
+        info_block = self.info.get("info", {}) or {}
+        config_block = info_block.get("config", {}) or {}
+        labels_source = (
+            config_block.get("valid_action_combos")
+            or info_block.get("action_captions")
+            or []
+        )
+        self.action_labels = []
+        for label in labels_source:
+            if isinstance(label, (list, tuple)):
+                normalized = "+".join(str(part).strip().upper() for part in label)
+            else:
+                normalized = str(label).strip().upper()
+            if normalized:
+                self.action_labels.append(normalized)
+        self.action_resolver = None
+
+        # Replace any "ACTION_JUMP" entries with "ACTION_PRIMARY" inside info_block["action_captions"]
+        if "action_captions" in info_block and isinstance(
+            info_block["action_captions"], list
+        ):
+            updated = []
+            for entry in info_block["action_captions"]:
+                if isinstance(entry, (list, tuple)):
+                    updated.append(
+                        [
+                            (
+                                "ACTION_PRIMARY"
+                                if (isinstance(x, str) and x == "ACTION_JUMP")
+                                else x
+                            )
+                            for x in entry
+                        ]
+                    )
+                else:
+                    updated.append(
+                        "ACTION_PRIMARY"
+                        if (isinstance(entry, str) and entry == "ACTION_JUMP")
+                        else entry
+                    )
+            info_block["action_captions"] = updated
+
+        if annotation_control_fpath is not None:
+            self.action_resolver = ActionResolver(
+                game=info_block["game"],
+                action_captions=info_block["action_captions"],
+                annotation_control_fpath=annotation_control_fpath,
+                dataset_root=self.root_dpath,
+                logger=self.log,
+            )
 
         # Determine output mode from generator config (frame vs video). Default to frames.
         self.output_mode = str(self.info["generator_config"]["output_mode"]).lower()
@@ -591,6 +814,7 @@ class EnvironmentDataset(Dataset):
     def __build_split(self, metadata, split, split_type="instance"):
         n_elements = len(metadata)
 
+        # Build a new dictionary; do not mutate the input metadata
         if split_type == "instance":
             dataset_split = range(
                 int(math.floor(n_elements * self.__DATASET_SPLIT[split][0])),
@@ -632,7 +856,6 @@ class EnvironmentDataset(Dataset):
             raise ValueError(f"Invalid split type: {split_type}")
 
         return new_metadata
-
 
     def __create_metadata(self):
         has_read_error = False
@@ -750,46 +973,46 @@ class EnvironmentDataset(Dataset):
 
         # If dataset was generated as a video, read frames from the session video
         if output_mode == "video":
-            # Derive session directory from the formatted frame path (which points to .../frames/{:06d}.jpg)
-
             video_fpath = Path(fpath)
-
             cap = cv2.VideoCapture(str(video_fpath))
             if not cap.isOpened():
                 raise ValueError(f"Could not open video file: {video_fpath}")
 
-            frames_list = []
-            for frame_id in frame_ids:
-                # Seek to the exact frame index (keyframe every frame in our generator)
-                cap.set(cv2.CAP_PROP_POS_FRAMES, int(frame_id))
-                ret, frame = cap.read()
-                if not ret or frame is None:
-                    cap.release()
-                    raise ValueError(
-                        f"Could not read frame {frame_id} from video {video_fpath}."
+            frames = []
+            try:
+                for frame_id in frame_ids:
+                    # Seek to the exact frame index (keyframe every frame in our generator)
+                    cap.set(cv2.CAP_PROP_POS_FRAMES, int(frame_id))
+                    ret, frame = cap.read()
+                    if not ret or frame is None:
+                        raise ValueError(
+                            f"Could not read frame {frame_id} from video {video_fpath}."
+                        )
+
+                    frame = cv2.resize(
+                        frame,
+                        (
+                            int(frame.shape[1] * scaling_factor),
+                            int(frame.shape[0] * scaling_factor),
+                        ),
+                        interpolation=cv2.INTER_AREA,
                     )
+                    frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB).astype(np.uint8)
 
-                frame = cv2.resize(
-                    frame,
-                    (
-                        int(frame.shape[1] * scaling_factor),
-                        int(frame.shape[0] * scaling_factor),
-                    ),
-                    interpolation=cv2.INTER_AREA,
-                )
-                frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB).astype(np.uint8)
+                    if self.occlusion_mask is not None:
+                        frame = (
+                            frame * (1 - self.occlusion_mask)
+                            + self.occlusion_mask * 128
+                        )
 
-                if self.occlusion_mask is not None:
-                    frame = (
-                        frame * (1 - self.occlusion_mask) + self.occlusion_mask * 128
-                    )
+                    if transform is not None:
+                        frame = transform(frame)
 
-                if transform is not None:
-                    frame = transform(frame)
-                frames_list.append(frame)
+                    frames.append(frame)
+            finally:
+                cap.release()
 
-            cap.release()
-            frames = np.stack(frames_list, axis=0)
+            frames = np.stack(frames, axis=0)
             if self.format == DatasetOutputFormat.PVG:
                 frames = frames.transpose(0, 3, 1, 2)
             return frames
@@ -907,11 +1130,57 @@ class EnvironmentDataset(Dataset):
             )
 
         # frames = self.jitter_transform(torch.tensor(frames, dtype=torch.float32)).numpy()
-
         input_frames = frames[:-1]
         output_frame = frames[-1]
 
         actions = np.array([action for action in actions], dtype=np.uint8)
+        if actions.ndim > 1:
+            action_indices = actions.argmax(axis=1)
+        else:
+            action_indices = actions.astype(np.int64)
+
+        action_name_sequence = None
+        if self.action_resolver is not None:
+            action_name_sequence = self.action_resolver.indices_to_action_names(
+                action_indices.tolist()
+            )
+
+        if action_name_sequence is None:
+            fallback_map = self.DEFAULT_ACTION_NAMES or {}
+            if isinstance(self.action_labels, (list, tuple)):
+                labels_source = self.action_labels
+            else:
+                labels_source = []
+
+            mapped: list[str] = []
+            for idx in action_indices.tolist():
+                label_key = None
+                if labels_source and idx < len(labels_source):
+                    raw_label = labels_source[idx]
+                    if isinstance(raw_label, (list, tuple)):
+                        label_key = "+".join(str(part).strip() for part in raw_label)
+                    else:
+                        label_key = str(raw_label).strip()
+
+                label_value = None
+                if label_key:
+                    label_value = fallback_map.get(label_key.upper())
+
+                if label_value is None:
+                    label_value = str(idx)
+
+                mapped.append(label_value)
+
+            action_name_sequence = mapped
+
+            # warn that we're using fallback/default action labels
+            if getattr(self, "log", None) is not None:
+                self.log.w(
+                    f"No action resolver/control annotations found for dataset '{self.name}'. "
+                    "Falling back to default action labels. Provide 'annotation_control_fpath' or "
+                    "valid action captions in dataset info to override."
+                )
+
         if self.format == DatasetOutputFormat.IVG:
             is_first = np.zeros((self.seq_length_current + 1, 1), dtype=int)
             is_first[0, :] = np.ones_like(is_first[0, :])
@@ -958,6 +1227,7 @@ class EnvironmentDataset(Dataset):
                 "n_instances": self.n_instances,
                 "src_frame_ids": np.array(src_frame_ids),
                 "tgt_frame_id": np.array([tgt_frame_id]),
+                "action_name": action_name_sequence,
             }
 
         elif self.format == DatasetOutputFormat.VICREG:
@@ -985,6 +1255,7 @@ class EnvironmentDataset(Dataset):
                 "actions": np.array(actions),
                 "src_frame_ids": np.array(src_frame_ids),
                 "tgt_frame_id": np.array([tgt_frame_id]),
+                "action_name": action_name_sequence,
             }
 
             if self.enable_test:
