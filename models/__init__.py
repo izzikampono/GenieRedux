@@ -1,5 +1,5 @@
 
-from .dynamics import Dynamics, MaskGIT
+from .dynamics import Dynamics, GradualDynamics, MaskGIT
 from .genie_redux import GenieRedux, GenieReduxGuided
 from .lam import LatentActionModel
 from .tokenizer import Tokenizer
