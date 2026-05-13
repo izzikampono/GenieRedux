@@ -6,8 +6,9 @@ import torch.nn.functional as F
 from einops import pack, rearrange, unpack
 from torch import nn
 
-from .components.attention import ContinuousPositionBias, STTransformer
 from tools.logger import getLogger
+
+from .components.attention import ContinuousPositionBias, STTransformer
 
 log = getLogger(__name__)
 
@@ -327,9 +328,7 @@ class MaskGIT(nn.Module):
             num_tokens + 1, dim
         )  # last token is used as mask_id
 
-        self.mask_token_template = torch.zeros(
-            (self.dim)
-        )
+        self.mask_token_template = torch.zeros((self.dim))
 
         self.max_seq_len = max_seq_len
         self.pos_emb = nn.Embedding(max_seq_len, dim)
@@ -533,6 +532,7 @@ class Dynamics(nn.Module):
         self.use_cross_entropy_loss = use_cross_entropy_loss
         self.use_focal_loss = use_focal_loss
         self.use_distance_weighted_loss = use_distance_weighted_loss
+        self.critic_train_sample_temperature = sample_temperature
 
         self.focal_loss = FocalLoss(gamma=2.0)
 
@@ -548,38 +548,29 @@ class Dynamics(nn.Module):
         if use_loss_tracking:
             tracker = accelerator_tracker_dict["tracker"]
             step = accelerator_tracker_dict["step"]
+            train_mode = accelerator_tracker_dict.get("train", True)
+            mode_prefix = "Train" if train_mode else "Validation"
             use_loss_tracking = step % 50 == 0
 
         if self.use_cross_entropy_loss:
             ce_loss = F.cross_entropy(logits, target_indices)
             if use_loss_tracking:
                 tracker.log(
-                    {
-                        "Train Cross Entropy Loss": ce_loss.item(),
-                    },
-                    step=step,
+                    {f"{mode_prefix} Cross Entropy Loss": ce_loss.item()}, step=step
                 )
             loss += ce_loss
 
         if self.use_focal_loss:
             focal_loss = self.focal_loss(logits, target_indices, alpha=2)
             if use_loss_tracking:
-                tracker.log(
-                    {
-                        "Train Focal Loss": focal_loss.item(),
-                    },
-                    step=step,
-                )
+                tracker.log({f"{mode_prefix} Focal Loss": focal_loss.item()}, step=step)
             loss += focal_loss
 
         if self.use_distance_weighted_loss:
             dw_loss = self.distance_weighted_loss(logits, target_indices)
             if use_loss_tracking:
                 tracker.log(
-                    {
-                        "Train Distance Weighted Loss": dw_loss.item(),
-                    },
-                    step=step,
+                    {f"{mode_prefix} Distance Weighted Loss": dw_loss.item()}, step=step
                 )
             loss += dw_loss
 
@@ -702,7 +693,6 @@ class Dynamics(nn.Module):
                 mask = torch.zeros(shape, device=device).scatter(1, indices, 1).bool()
 
             video_token_ids = torch.where(mask, self.mask_id, video_token_ids)
-
             input_token_ids = torch.cat((prime_token_ids, video_token_ids), dim=-1)
 
             input_token_ids = rearrange(
@@ -715,10 +705,12 @@ class Dynamics(nn.Module):
                 actions,
                 prompt_tokens=prompt_tokens,
                 video_patch_shape=patch_shape,
-                tokenizer=tokenizer
+                tokenizer=tokenizer,
             )[:, -num_tokens:]
 
             temperature = sample_temperature * (steps_til_x0 / inference_steps)
+            # logits[:, :, 123] = logits[:, :, 123] / 1000
+            # breakpoint()
             pred_video_ids = gumbel_sample(logits, temperature=temperature)
 
             video_token_ids = (
@@ -829,3 +821,181 @@ class Dynamics(nn.Module):
             return loss, returned_token_ids
 
         return loss
+
+
+class GradualDynamics(Dynamics):
+    """
+    A Dynamics variant that generates frames iteratively,
+    running the MaskGIT sampler on a sliding window for a small number of frames
+    (default 1) with a configurable number of refinement iterations per frame.
+
+    Training semantics remain identical; only the `sample` method is overridden.
+    """
+
+    def __init__(
+        self,
+        *,
+        maskgit: MaskGIT,
+        tokenizer_codebook=None,
+        inference_steps=1,
+        sample_temperature=1.0,
+        mask_schedule="cosine",
+        use_cross_entropy_loss=True,
+        use_focal_loss=False,
+        use_distance_weighted_loss=False,
+        frames_per_step: int = 1,
+        inference_steps_per_frame: int | None = None,
+    ):
+        super().__init__(
+            maskgit=maskgit,
+            tokenizer_codebook=tokenizer_codebook,
+            inference_steps=inference_steps,
+            sample_temperature=sample_temperature,
+            mask_schedule=mask_schedule,
+            use_cross_entropy_loss=use_cross_entropy_loss,
+            use_focal_loss=use_focal_loss,
+            use_distance_weighted_loss=use_distance_weighted_loss,
+        )
+
+        self.gradual_frames_per_step = max(frames_per_step, 1)
+        self.gradual_inference_steps_per_frame = (
+            inference_steps_per_frame
+            if inference_steps_per_frame is not None
+            else inference_steps
+        )
+
+    @eval_decorator
+    @torch.no_grad()
+    def sample(
+        self,
+        prime_token_ids=None,
+        actions=None,
+        prompt_tokens=None,
+        num_tokens=None,
+        patch_shape=None,
+        inference_steps=None,
+        mask_schedule=None,
+        sample_temperature=None,
+        return_confidence=False,
+        return_logits=False,
+        tokenizer=None,
+        frames_per_step=None,
+        teacher_token_ids=None,
+        *args,
+        **kwargs,
+    ):
+        if return_logits:
+            raise NotImplementedError(
+                "GradualDynamics.sample does not support return_logits; "
+                "use Dynamics.sample instead."
+            )
+
+        frames_per_step = frames_per_step or self.gradual_frames_per_step
+        inference_steps_per_frame = (
+            inference_steps or self.gradual_inference_steps_per_frame
+        )
+
+        assert exists(prime_token_ids), "prime_token_ids must be provided"
+        assert exists(actions), "actions must be provided"
+        assert exists(num_tokens), "num_tokens must be provided"
+        assert exists(patch_shape), "patch_shape must be provided"
+
+        if not exists(mask_schedule):
+            mask_schedule = self.mask_schedule
+        if not exists(sample_temperature):
+            sample_temperature = self.sample_temperature
+
+        t_total, h, w = patch_shape
+        tokens_per_frame = h * w
+
+        prime_token_ids = prime_token_ids.clone()
+        prime_num_frames = prime_token_ids.shape[1] // tokens_per_frame
+        total_new_frames = t_total - prime_num_frames
+        assert total_new_frames > 0, "num_tokens must correspond to frames to generate"
+        assert num_tokens == total_new_frames * tokens_per_frame, (
+            "num_tokens inconsistent with patch_shape and prime frames"
+        )
+
+        use_teacher = exists(teacher_token_ids)
+        if use_teacher:
+            expected_tokens = (prime_num_frames + total_new_frames) * tokens_per_frame
+            assert teacher_token_ids.shape[1] == expected_tokens, (
+                "teacher_token_ids must contain tokens for prime plus generated frames"
+            )
+            teacher_tokens = rearrange(
+                teacher_token_ids, "b (t h w) -> b t h w", h=h, w=w
+            )
+        else:
+            teacher_tokens = None
+
+        video_tokens = rearrange(prime_token_ids, "b (t h w) -> b t h w", h=h, w=w)
+
+        generated_confidence = [] if return_confidence else None
+        generated_tokens = []
+
+        generated_frames = 0
+        while generated_frames < total_new_frames:
+            frames_remaining = total_new_frames - generated_frames
+            frames_this_step = min(frames_per_step, frames_remaining)
+
+            context_frames = video_tokens.shape[1]
+            context_tokens_flat = rearrange(video_tokens, "b t h w -> b (t h w)")
+
+            patch_shape_step = (context_frames + frames_this_step, h, w)
+            num_tokens_step = frames_this_step * tokens_per_frame
+
+            required_actions = context_frames + frames_this_step - 1
+            if required_actions > actions.shape[1]:
+                raise ValueError(
+                    f"Gradual sampling requires {required_actions} action steps, "
+                    f"but only {actions.shape[1]} were provided."
+                )
+            actions_slice = actions[:, :required_actions]
+
+            output = super().sample(
+                prime_token_ids=context_tokens_flat,
+                actions=actions_slice,
+                prompt_tokens=prompt_tokens,
+                num_tokens=num_tokens_step,
+                patch_shape=patch_shape_step,
+                inference_steps=inference_steps_per_frame,
+                mask_schedule=mask_schedule,
+                sample_temperature=sample_temperature,
+                return_confidence=return_confidence,
+                return_logits=False,
+                tokenizer=tokenizer,
+                *args,
+                **kwargs,
+            )
+
+            if return_confidence:
+                step_tokens_flat, step_confidence = output
+                generated_confidence.extend(step_confidence)
+            else:
+                step_tokens_flat = output
+
+            step_tokens = rearrange(
+                step_tokens_flat, "b (t h w) -> b t h w", t=frames_this_step, h=h, w=w
+            )
+
+            video_tokens = torch.cat([video_tokens, step_tokens], dim=1)
+
+            if use_teacher:
+                teacher_slice = teacher_tokens[
+                    :,
+                    prime_num_frames + generated_frames : prime_num_frames
+                    + generated_frames
+                    + frames_this_step,
+                ]
+                video_tokens[:, -frames_this_step:] = teacher_slice
+
+            generated_tokens.append(step_tokens)
+            generated_frames += frames_this_step
+
+        new_tokens = torch.cat(generated_tokens, dim=1)
+        new_tokens_flat = rearrange(new_tokens, "b t h w -> b (t h w)")
+
+        if return_confidence:
+            return new_tokens_flat, generated_confidence
+
+        return new_tokens_flat
