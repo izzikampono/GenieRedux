@@ -1,18 +1,20 @@
-import os
-import torch
-
 from models import (
-    Dynamics,
     GenieRedux,
     GenieReduxGuided,
     LatentActionModel,
     MaskGIT,
     Tokenizer,
 )
+from models.dynamics import Dynamics, GradualDynamics
 
 
 def construct_model(config):
-    if config.model not in ["tokenizer", "genie_redux", "genie_redux_guided", "genie_redux_guided_pretrain"]:
+    if config.model not in [
+        "tokenizer",
+        "genie_redux",
+        "genie_redux_guided",
+        "genie_redux_guided_pretrain",
+    ]:
         raise ValueError(f"Unknown model: {config.model}")
 
     tokenizer = Tokenizer(
@@ -63,7 +65,13 @@ def construct_model(config):
         use_token=config.dynamics.use_token,
     )
 
-    dynamics = Dynamics(
+    # dynamics = Dynamics(
+    #     maskgit=maskgit,
+    #     inference_steps=1,
+    #     sample_temperature=config.dynamics.sample_temperature,
+    #     mask_schedule="cosine",
+    # )
+    dynamics = GradualDynamics(
         maskgit=maskgit,
         inference_steps=1,
         sample_temperature=config.dynamics.sample_temperature,

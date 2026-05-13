@@ -17,6 +17,10 @@ data:
   genre: null
   motion: null
   platform: null
+  annotation_tag_fpath: data_generation/annotations/RetroAct_v0.1.csv
+  annotation_control_fpath: data_generation/annotations/RetroAct_v0.1_control.csv
+  exclude_blinking: true
+  exclude_delayed: true
 
 train:
   dataset_root_dpath: ???
@@ -32,6 +36,7 @@ train:
   validate_every: 1000
   save_model_every: 1000
   resume_ckpt: "no"
+  load_weights_only: false
   save_root_dpath: "./checkpoints"
   enable_cache: True
   cache_dpath: "cache/${train.dataset_name}/"
@@ -43,6 +48,7 @@ train:
   n_total_samples: ???
   n_envs: ???
   max_valid_size: ???
+  use_model_rollout_targets: false
 
 eval:
   dataset_root_dpath: ???
@@ -58,6 +64,9 @@ eval:
   num_frames: 16
   seq_step: 16
   inference_steps: 25
+  mask_schedule: "cosine"
+  sample_temperature: 1.0
+  window_size: 16
   sample_num_frames: 10
   delta_psnr_horizon: 4
   num_first_frames: 2
@@ -68,6 +77,10 @@ eval:
   inference_method: "one_go"
   action_to_take: -1
   eval_control: "no"
+  n_samples: -1
+  teacher_forcing: false
+  n_previews: 10
+  reconstruction_mode: false
 
 model: ???
 

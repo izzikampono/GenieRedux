@@ -2,6 +2,7 @@ import functools
 import torch
 import torch.nn.functional as F
 from torch import nn
+import torch.nn.init as init
 
 from einops import rearrange, repeat
 
@@ -64,7 +65,7 @@ class GenieReduxGuided(nn.Module):
 
         self.image_size = tokenizer.image_size
 
-        self.dim_actions = dynamics.maskgit.action_dim
+        self._action_embedding_dim = dynamics.maskgit.action_dim
 
         config = {}
         arguments = locals()
@@ -80,17 +81,17 @@ class GenieReduxGuided(nn.Module):
                 config[key] = arguments[key]
         self.config = config
 
-        self.use_action_embeddings = False
-        if "use_action_embeddings" in kwargs:
-            self.use_action_embeddings = kwargs["use_action_embeddings"]
+        self.use_action_embeddings = bool(kwargs.get("use_action_embeddings", False))
+
+        if self.use_action_embeddings:
+            self._action_embeddings = nn.ParameterList()
+            self._action_name_to_index: dict[str, int] = {}
+        else:
+            self._action_embeddings = None
+            self._action_name_to_index = {}
 
         ph, pw = tokenizer.patch_size
-        
-        if self.use_action_embeddings:
-            self.action_embeddings = nn.Embedding(
-                num_embeddings=self.dim_actions, embedding_dim=dynamics.maskgit.dim
-            )
-            
+
         self.vq_codebook_distances = None
 
     @property
@@ -99,14 +100,162 @@ class GenieReduxGuided(nn.Module):
 
     def trainable_parameters(self):
         trainable_parameters = list(self.dynamics.parameters())
+        if self.use_action_embeddings and self._action_embeddings is not None:
+            trainable_parameters += list(self._action_embeddings)
         return trainable_parameters
 
+    def _parameter_device(self):
+        try:
+            return next(self.parameters()).device
+        except StopIteration:
+            return torch.device("cpu")
+
+    @staticmethod
+    def _normalize_action_key(name):
+        if name is None:
+            return ""
+        return str(name).strip().lower()
+
+    def _format_action_name_batch(self, action_name_batch):
+        if action_name_batch is None:
+            return []
+        if isinstance(action_name_batch, (str, bytes)):
+            return [[action_name_batch]]
+        formatted = []
+        for seq in action_name_batch:
+            if seq is None:
+                formatted.append([])
+                continue
+            if isinstance(seq, (str, bytes)):
+                formatted.append([seq])
+                continue
+            if hasattr(seq, "tolist"):
+                seq = seq.tolist()
+            formatted.append(list(seq))
+        return formatted
+
+    def _init_action_embedding(self):
+        device = self._parameter_device()
+        weight = torch.empty(self._action_embedding_dim, device=device)
+        init.normal_(weight, mean=0.0, std=0.02)
+        return weight
+
+    def ensure_action_embeddings(self, action_name_batch, optimizer=None):
+        if not self.use_action_embeddings or action_name_batch is None:
+            return
+
+        if self._action_embeddings is None:
+            self._action_embeddings = nn.ParameterList()
+
+        sequences = self._format_action_name_batch(action_name_batch)
+        new_params = []
+        for seq in sequences:
+            for name in seq:
+                key = self._normalize_action_key(name)
+                if key == "":
+                    continue
+                if key not in self._action_name_to_index:
+                    param = nn.Parameter(self._init_action_embedding())
+                    self._action_embeddings.append(param)
+                    self._action_name_to_index[key] = len(self._action_embeddings) - 1
+                    new_params.append(param)
+
+        if optimizer is not None and new_params:
+            for param in new_params:
+                optimizer.add_param_group({"params": [param]})
+
+    def _lookup_action_embeddings(self, action_name_batch):
+        sequences = self._format_action_name_batch(action_name_batch)
+        if not sequences:
+            raise ValueError(
+                "Action names must be provided when using action embeddings."
+            )
+        if self._action_embeddings is None:
+            raise RuntimeError("Action embeddings have not been initialized.")
+
+        batch_embeddings = []
+        for seq in sequences:
+            if not seq:
+                raise ValueError(
+                    "Encountered an empty action sequence; ensure action names are aligned with the action timeline."
+                )
+            seq_embeddings = []
+            for name in seq:
+                key = self._normalize_action_key(name)
+                if key not in self._action_name_to_index:
+                    raise KeyError(
+                        f"Unknown action name '{name}'. Call ensure_action_embeddings before encoding."
+                    )
+                idx = self._action_name_to_index[key]
+                seq_embeddings.append(self._action_embeddings[idx])
+            batch_embeddings.append(torch.stack(seq_embeddings, dim=0))
+        return torch.stack(batch_embeddings, dim=0)
+
+    def encode_actions(self, actions=None, action_names=None):
+        if self.use_action_embeddings:
+            if action_names is None:
+                raise ValueError(
+                    "action_names must be provided when use_action_embeddings is True."
+                )
+            return self._lookup_action_embeddings(action_names)
+
+        if actions is None:
+            raise ValueError("actions must be provided when not using embeddings.")
+
+        if actions.ndim >= 3:
+            return actions.float()
+
+        num_classes = (
+            int(actions.max().item()) + 1 if actions.numel() > 0 else self._action_embedding_dim
+        )
+        encoded = F.one_hot(actions.long(), num_classes=num_classes)
+        return encoded.float()
+
     def state_dict(self, *args, **kwargs):
-        state_dict = {"dynamics": self.dynamics.state_dict(*args, **kwargs)}
-        return state_dict
+        state = {"dynamics": self.dynamics.state_dict(*args, **kwargs)}
+        if self.use_action_embeddings:
+            if self._action_embeddings is not None and len(self._action_embeddings) > 0:
+                weights = torch.stack(
+                    [param.detach().cpu() for param in self._action_embeddings],
+                    dim=0,
+                )
+            else:
+                weights = torch.empty((0, self._action_embedding_dim))
+
+            names = [None] * len(self._action_name_to_index)
+            for name, idx in self._action_name_to_index.items():
+                if 0 <= idx < len(names):
+                    names[idx] = name
+
+            state["action_embeddings"] = {
+                "weights": weights,
+                "names": names,
+            }
+        return state
 
     def load_state_dict(self, state_dict, strict=True, *args, **kwargs):
         self.dynamics.load_state_dict(state_dict["dynamics"], strict=strict, *args, **kwargs)
+
+        if self.use_action_embeddings and "action_embeddings" in state_dict:
+            payload = state_dict["action_embeddings"]
+            weights = payload.get("weights")
+            names = payload.get("names", [])
+
+            self._action_embeddings = nn.ParameterList()
+            self._action_name_to_index = {}
+
+            if weights is None or weights.numel() == 0:
+                return
+
+            device = self._parameter_device()
+            for idx, weight in enumerate(weights):
+                param = nn.Parameter(weight.to(device))
+                self._action_embeddings.append(param)
+                name = ""
+                if idx < len(names) and names[idx] is not None:
+                    name = names[idx]
+                key = self._normalize_action_key(name if name else f"action_{idx}")
+                self._action_name_to_index[key] = idx
 
     def accelator_log(self, accelerator_tracker_dict, ce_loss, decoder_loss=None):
         if exists(accelerator_tracker_dict):
@@ -146,12 +295,8 @@ class GenieReduxGuided(nn.Module):
     def decode_from_codebook_indices(self, codebook_indices):
         return self.tokenizer.decode_from_codebook_indices(codebook_indices)
 
-    def get_codes_from_indices(self, indices):
-        # convert the indices to action one hot vectors
-        if self.use_action_embeddings:
-            return self.action_embeddings(indices)
-        else:
-            return F.one_hot(indices, num_classes=self.dim_actions).float()
+    def get_codes_from_indices(self, indices, action_names=None):
+        return self.encode_actions(actions=indices, action_names=action_names)
 
     @eval_decorator
     @torch.no_grad()
@@ -159,6 +304,7 @@ class GenieReduxGuided(nn.Module):
         self,
         prime_frames=None,
         actions=None,
+        action_names=None,
         num_frames=None,
         return_token_ids=False,
         return_confidence=False,
@@ -166,12 +312,18 @@ class GenieReduxGuided(nn.Module):
         mask_schedule="cosine",
         sample_temperature=1.0,
         return_logits=False,
+        teacher_videos=None,
         *args,
         **kwargs,
     ):
         assert prime_frames is not None, "Prime frames should be provided"
         assert actions is not None, "Actions should be provided"
         assert num_frames is not None, "Number of frames to generate should be provided"
+        if self.use_action_embeddings:
+            assert (
+                action_names is not None
+            ), "Action names must be provided when using action embeddings."
+            self.ensure_action_embeddings(action_names)
 
         # derive the priming token ids, to be prepended to the input being demasked by mask-git at each round
         prime_token_ids = self.get_tokenizer_codebook_ids(prime_frames)
@@ -186,7 +338,12 @@ class GenieReduxGuided(nn.Module):
         )
 
         # derive the latent actions
-        actions = self.get_codes_from_indices(actions)
+        actions = self.encode_actions(actions=actions, action_names=action_names)
+
+        teacher_token_ids = None
+        if exists(teacher_videos):
+            teacher_token_ids = self.get_tokenizer_codebook_ids(teacher_videos)
+            teacher_token_ids = rearrange(teacher_token_ids, "b ... -> b (...)")
 
         output = self.dynamics.sample(
             prime_token_ids=prime_token_ids,
@@ -199,6 +356,7 @@ class GenieReduxGuided(nn.Module):
             sample_temperature=sample_temperature,
             return_logits=return_logits,
             tokenizer=self.tokenizer,
+            teacher_token_ids=teacher_token_ids,
         )
 
 
@@ -233,6 +391,7 @@ class GenieReduxGuided(nn.Module):
         self,
         prime_frames=None,
         actions=None,
+        action_names=None,
         num_frames=None,
         dream_length=2,
         window_size=5,
@@ -252,8 +411,19 @@ class GenieReduxGuided(nn.Module):
 
         # Extend actions to cover dream length
         actions = torch.cat([actions] + [actions[:, -1:]] * dream_length, dim=1)
+        if action_names is not None:
+            action_names = self._format_action_name_batch(action_names)
+            action_names = [
+                list(seq) + [seq[-1]] * dream_length if seq else seq
+                for seq in action_names
+            ]
+        if self.use_action_embeddings:
+            assert (
+                action_names is not None
+            ), "Action names must be provided when using action embeddings."
+            self.ensure_action_embeddings(action_names)
 
-        actions = self.get_codes_from_indices(actions)
+        actions = self.get_codes_from_indices(actions, action_names=action_names)
 
         initial_prime_num_frames = prime_frames.shape[2]
 
@@ -262,7 +432,7 @@ class GenieReduxGuided(nn.Module):
 
         for i in range(0,num_frames,dream_length):
             # Calculate window start and end frames
-            start_frame = 0 # max(0, i + initial_prime_num_frames - window_size)
+            start_frame = max(0, i + initial_prime_num_frames - window_size)
             end_frame = i + initial_prime_num_frames
 
             # Extract tokens for the current window
@@ -300,6 +470,7 @@ class GenieReduxGuided(nn.Module):
 
             if return_logits:
                 new_tokens, logits = output
+                full_logits=None
                 if full_logits is None:
                     full_logits = logits
                 else:
@@ -393,6 +564,7 @@ class GenieReduxGuided(nn.Module):
         self,
         videos=None,
         actions=None,
+        action_names=None,
         video_mask=None,
         accelerator_tracker_dict=None,
         return_token_ids=False,
@@ -410,13 +582,13 @@ class GenieReduxGuided(nn.Module):
         video_codebook_ids = video_codebook_ids.detach()
 
         if self.use_action_embeddings:
-            #turn actions from one hot encoding on the last dim to indices
-            actions = torch.argmax(actions, dim=-1)
-            actions = self.action_embeddings(actions)
+            self.ensure_action_embeddings(action_names)
+
+        encoded_actions = self.encode_actions(actions=actions, action_names=action_names)
 
         dynamics_output = self.dynamics(
             video_codebook_ids=video_codebook_ids,
-            actions=actions,
+            actions=encoded_actions,
             video_mask=video_mask,
             accelerator_tracker_dict=accelerator_tracker_dict,
             return_token_ids=return_token_ids,

@@ -1,6 +1,5 @@
 import math
 import os
-from pathlib import Path
 
 # set the current working directory as the project root directory
 os.chdir(os.path.dirname(os.path.abspath(__file__)))
@@ -69,20 +68,11 @@ def resolve_game_whitelist(data_cfg):
     ):
         return None
 
-    annotation_path = (
-        Path(__file__).resolve().parent
-        / "data_generation"
-        / "annotations"
-        / "RetroAct_v0.1.csv"
-    )
-    if not annotation_path.exists():
-        raise FileNotFoundError(
-            "RetroAct annotation file 'RetroAct_v0.1.csv' not found in expected locations."
-        )
-
     game_data = GameData(
-        annotation_fpath=str(annotation_path),
-        control_annotation_fpath=None,
+        annotation_fpath=data_cfg["annotation_tag_fpath"],
+        control_annotation_fpath=data_cfg["annotation_control_fpath"],
+        exclude_blinking=bool(data_cfg["exclude_blinking"]),
+        exclude_delayed=bool(data_cfg["exclude_delayed"]),
     )
     selected_games = game_data.query(
         view=view_filter,
@@ -198,6 +188,7 @@ def run(args):
             n_workers=n_workers,
             n_envs=n_envs,
             whitelist=game_whitelist,
+            annotation_control_fpath=args.data["annotation_control_fpath"],
         )
 
         n_samples_valid = math.ceil(n_total_samples / train_ds_mev.n_datasets)
@@ -217,6 +208,7 @@ def run(args):
             n_samples=n_samples_valid,
             source_dataset=train_ds_mev,
             whitelist=game_whitelist,
+            annotation_control_fpath=args.data["annotation_control_fpath"],
         )
         valid_ds_mev = Subset(valid_ds_mev, range(n_total_samples))
 
@@ -294,7 +286,10 @@ def run(args):
         count_parameters(model)
 
     if args.train.resume_ckpt != "no":
-        trainer.load(args.train.resume_ckpt)
+        trainer.load(
+            args.train.resume_ckpt,
+            weights_only=bool(getattr(args.train, "load_weights_only", False)),
+        )
         print("Model loaded from file:", args.train.resume_ckpt)
         print("Starting training from step:", trainer.step)
 

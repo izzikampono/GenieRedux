@@ -19,10 +19,10 @@ train:
   dataset_root_dpath: "data_generation/datasets"
   dataset_name: "retro_act_v0.0.0"
   wandb_name: "genie_redux_guided_pretrain"
-  num_train_steps: 180000
+  num_train_steps: 150000
   batch_size: 4
-  grad_accum: 3
-  n_data_workers: 46
+  grad_accum: 2
+  n_data_workers: 8
   n_total_samples: 50
   n_envs: 200
   max_valid_size: 50

@@ -1,3 +1,5 @@
+import statistics
+import time
 from contextlib import contextmanager
 from pathlib import Path
 
@@ -10,6 +12,7 @@ from einops import rearrange
 from PIL import Image
 from torch import nn
 from torch.utils.data import DataLoader, Dataset, Subset
+from torch.utils.data._utils.collate import default_collate
 from tqdm import tqdm
 
 from data.data import (
@@ -165,6 +168,9 @@ class Trainer(nn.Module):
         self.num_frames = num_frames
         self.sample_num_frames = sample_num_frames
         self.use_decoder_loss = getattr(train_config.train, "use_decoder_loss", False)
+        self.use_model_rollout_targets = bool(
+            getattr(train_config.train, "use_model_rollout_targets", False)
+        )
 
         # Create config dictionary for logging
         config = {}
@@ -242,6 +248,7 @@ class Trainer(nn.Module):
             batch_size=batch_size,
             shuffle=True,
             num_workers=4,
+            collate_fn=collate_with_action_names,
         )
 
         self.valid_dl = DataLoader(
@@ -249,6 +256,7 @@ class Trainer(nn.Module):
             batch_size=max_valid_size // 4,
             shuffle=False,
             num_workers=4,
+            collate_fn=collate_with_action_names,
         )
 
         # Prepare with accelerator
@@ -275,6 +283,7 @@ class Trainer(nn.Module):
             batch_size=max_valid_size,
             shuffle=False,
             num_workers=4,
+            collate_fn=collate_with_action_names,
         )
         full_batch_valid_dl = self.accelerator.prepare(full_batch_valid_dl)
         self.valid_dl_iter = cycle(full_batch_valid_dl)
@@ -335,6 +344,39 @@ class Trainer(nn.Module):
         self.valid_data_to_log["actions"] = valid_data_to_log["actions"][
             [q0, q1, q2, q3]
         ]
+        self.valid_data_to_log["action_name"] = [
+            valid_data_to_log["action_name"][q] for q in [q0, q1, q2, q3]
+        ]
+        # if "action_name" in valid_data_to_log:
+        #     indices = [q0, q1, q2, q3]
+        #     action_names = valid_data_to_log["action_name"]
+
+        #     per_sample_names: list[list[str]] = []
+
+        #     if isinstance(action_names, (list, tuple)):
+        #         if not action_names:
+        #             per_sample_names = []
+        #         elif isinstance(action_names[0], (list, tuple)):
+        #             # DataLoader collated as [seq_len][batch]
+        #             per_sample_names = [
+        #                 list(names_at_step) for names_at_step in zip(*action_names)
+        #             ]
+        #         else:
+        #             per_sample_names = list(action_names)
+        #     else:
+        #         per_sample_names = []
+
+        #     selected_action_names: list = []
+        #     for idx in indices:
+        #         if 0 <= idx < len(per_sample_names):
+        #             sample_names = per_sample_names[idx]
+        #             if isinstance(sample_names, (list, tuple)):
+        #                 selected_action_names.append(list(sample_names))
+        #             else:
+        #                 selected_action_names.append(sample_names)
+
+        #     if selected_action_names:
+        #         self.valid_data_to_log["action_name"] = selected_action_names
 
     def save(self, milestone):
         """
@@ -421,6 +463,66 @@ class Trainer(nn.Module):
         """Check if this is the local main process."""
         return self.accelerator.is_local_main_process
 
+    def _generate_model_rollout_targets(
+        self, videos, actions, action_names, model_ref
+    ):
+        """
+        Replace dataset videos with model rollouts using the current policy.
+        """
+        if not self.is_genie:
+            raise RuntimeError(
+                "Model rollout target mode is only supported for Genie models."
+            )
+        num_prime_frames = max(self.num_frames - self.sample_num_frames, 1)
+        expected_total_frames = num_prime_frames + self.sample_num_frames
+        if expected_total_frames != self.num_frames:
+            raise ValueError(
+                "Mismatch between configured prime/sample frames and total frames: "
+                f"{num_prime_frames} + {self.sample_num_frames} != {self.num_frames}"
+            )
+
+        # videos: (b, f, c, h, w)
+        videos_bcfhw = rearrange(videos, "b f c h w -> b c f h w")
+        prime_frames = videos_bcfhw[:, :, :num_prime_frames]
+
+        action_horizon = expected_total_frames - 1
+        actions_slice = actions[:, :action_horizon]
+
+        action_names_slice = action_names
+        if action_names_slice is not None:
+            action_names_slice = []
+            for seq in action_names:
+                if seq is None:
+                    action_names_slice.append(None)
+                else:
+                    action_names_slice.append(list(seq)[:action_horizon])
+
+        embeddings_required = getattr(model_ref, "use_action_embeddings", False)
+        actions_for_sampling = actions_slice
+        if self.is_genie and not embeddings_required:
+            actions_for_sampling = actions_slice.argmax(dim=-1)
+
+        with torch.no_grad():
+            recons = self.inference(
+                actions=actions_for_sampling,
+                action_names=action_names_slice,
+                prime_frames=prime_frames,
+                num_frames=self.sample_num_frames,
+                return_recons_only=True,
+            )
+
+        rollout_sequence = torch.cat([prime_frames, recons], dim=2).detach()
+        current_frames = rollout_sequence.shape[2]
+        if current_frames < expected_total_frames:
+            pad_frames = expected_total_frames - current_frames
+            last_frame = rollout_sequence[:, :, -1:].repeat(1, 1, pad_frames, 1, 1)
+            rollout_sequence = torch.cat([rollout_sequence, last_frame], dim=2)
+        elif current_frames > expected_total_frames:
+            rollout_sequence = rollout_sequence[:, :, :expected_total_frames]
+
+        rollout_videos = rearrange(rollout_sequence, "b c f h w -> b f c h w")
+        return rollout_videos.to(videos.dtype)
+
     def train_step(self, *args, **kwargs):
         """
         Perform a single training step.
@@ -438,11 +540,21 @@ class Trainer(nn.Module):
         total_loss = 0.0
 
         # Perform gradient accumulation
+        model_ref = self.accelerator.unwrap_model(self.model)
         for i in range(self.grad_accum_every):
             # Get next batch of data
-            videos = next(self.dl_iter)
-            actions = videos["actions"]
-            videos = videos["input_frames"]
+            batch = next(self.dl_iter)
+            actions = batch["actions"]
+            action_names = batch["action_name"]
+            videos = batch["input_frames"]
+
+            if getattr(model_ref, "use_action_embeddings", False):
+                model_ref.ensure_action_embeddings(action_names, optimizer=self.optim)
+
+            if self.use_model_rollout_targets:
+                videos = self._generate_model_rollout_targets(
+                    videos, actions, action_names, model_ref
+                )
 
             accelerator_tracker_dict = None
             if step % self.wandb_log_every == 0:
@@ -461,6 +573,7 @@ class Trainer(nn.Module):
                     loss = self.model(
                         videos=videos,
                         actions=actions,
+                        action_names=action_names,
                         apply_grad_penalty=apply_grad_penalty,
                         accelerator_tracker_dict=accelerator_tracker_dict,
                         use_decoder_loss=self.use_decoder_loss,
@@ -502,27 +615,38 @@ class Trainer(nn.Module):
                 "log_every": self.wandb_log_every,
             }
             psnrs = []
+            embeddings_required = getattr(model_ref, "use_action_embeddings", False)
             with torch.no_grad():
-                for videos in self.valid_dl:
-                    actions = videos["actions"]
-                    videos = videos["input_frames"]
+                for batch_valid in self.valid_dl:
+                    actions = batch_valid["actions"]
+                    action_names = batch_valid.get("action_name")
+                    videos = batch_valid["input_frames"]
                     videos = rearrange(videos, "b f c h w -> b c f h w")
                     first_frames = videos[:, :, :1]
+
+                    if embeddings_required:
+                        model_ref.ensure_action_embeddings(
+                            action_names, optimizer=self.optim
+                        )
+
                     loss = self.model(
                         videos=videos,
                         actions=actions,
+                        action_names=action_names,
                         step=step,
                         accelerator_tracker_dict=accelerator_tracker_dict,
                         use_decoder_loss=self.use_decoder_loss,
                     )
 
-                    if self.is_genie:
-                        actions = actions.argmax(dim=-1)
+                    actions_for_sampling = actions
+                    action_names_for_sampling = action_names
+                    if self.is_genie and not embeddings_required:
+                        actions_for_sampling = actions.argmax(dim=-1)
 
                     # Generate reconstructions
                     recons = self.inference(
-                        videos=videos,
-                        actions=actions,
+                        actions=actions_for_sampling,
+                        action_names=action_names_for_sampling,
                         return_recons_only=True,
                         step=step,
                         num_frames=self.sample_num_frames,
@@ -591,16 +715,23 @@ class Trainer(nn.Module):
         if not (step % self.save_results_every):
             videos = self.valid_data_to_log["input_frames"]
             actions = self.valid_data_to_log["actions"]
+            action_names = self.valid_data_to_log.get("action_name")
             first_frames = videos[:, :, :1]
 
-            if self.is_genie:
-                actions = actions.argmax(dim=-1)
+            embeddings_required = getattr(model_ref, "use_action_embeddings", False)
+            if self.is_genie and not embeddings_required:
+                actions_for_sampling = actions.argmax(dim=-1)
+            else:
+                actions_for_sampling = actions
+
+            if embeddings_required:
+                model_ref.ensure_action_embeddings(action_names)
 
             # Generate reconstructions
             with torch.no_grad():
                 recons = self.inference(
-                    videos=videos,
-                    actions=actions,
+                    actions=actions_for_sampling,
+                    action_names=action_names,
                     prime_frames=first_frames,
                     num_frames=self.sample_num_frames,
                     return_recons_only=True,
@@ -664,6 +795,109 @@ class Trainer(nn.Module):
         self.step += 1
         return logs
 
+    def benchmark_forward(
+        self,
+        num_iters: int = 20,
+        warmup_iters: int = 5,
+        use_decoder_loss: bool | None = None,
+        log_each: bool = False,
+    ):
+        """
+        Measure forward-pass latency (seconds per iteration) without backward or optimizer steps.
+
+        Args:
+            num_iters: Number of measured iterations.
+            warmup_iters: Warmup iterations to discard.
+            use_decoder_loss: Override decoder loss usage; defaults to Trainer setting.
+            log_each: Whether to log every measured iteration.
+
+        Returns:
+            dict: Timing statistics.
+        """
+
+        if num_iters <= 0:
+            raise ValueError("num_iters must be > 0")
+        if warmup_iters < 0:
+            raise ValueError("warmup_iters cannot be negative")
+
+        total_iters = num_iters + warmup_iters
+        was_training = self.model.training
+        self.model.eval()
+
+        device = self.accelerator.device
+        model_ref = self.accelerator.unwrap_model(self.model)
+        if device.type == "cuda":
+            sync = lambda: torch.cuda.synchronize(device)  # noqa: E731
+        else:
+            sync = lambda: None  # noqa: E731
+
+        timings: list[float] = []
+        decoder_flag = (
+            self.use_decoder_loss if use_decoder_loss is None else use_decoder_loss
+        )
+
+        with torch.no_grad():
+            for step in range(total_iters):
+                batch = next(self.dl_iter)
+                videos = batch["input_frames"]
+                actions = batch.get("actions")
+                action_names = batch.get("action_name")
+
+                if getattr(model_ref, "use_action_embeddings", False):
+                    model_ref.ensure_action_embeddings(
+                        action_names, optimizer=self.optim
+                    )
+
+                self.accelerator.wait_for_everyone()
+                sync()
+                start = time.perf_counter()
+                with self.accelerator.autocast():
+                    _ = self.model(
+                        videos=videos,
+                        actions=actions,
+                        action_names=action_names,
+                        accelerator_tracker_dict=None,
+                        use_decoder_loss=decoder_flag,
+                    )
+                self.accelerator.wait_for_everyone()
+                sync()
+                duration = time.perf_counter() - start
+
+                if step >= warmup_iters:
+                    timings.append(duration)
+                    if log_each and self.is_main:
+                        self.print(
+                            f"[forward-only] iter {step - warmup_iters + 1}: {duration:.4f}s"
+                        )
+
+        self.model.train(was_training)
+
+        if not timings:
+            return {}
+
+        mean_time = sum(timings) / len(timings)
+        median_time = statistics.median(timings)
+        min_time = min(timings)
+        max_time = max(timings)
+
+        stats = {
+            "mean_s": mean_time,
+            "median_s": median_time,
+            "min_s": min_time,
+            "max_s": max_time,
+            "iters": len(timings),
+            "warmup": warmup_iters,
+        }
+
+        if self.is_main:
+            self.print(
+                f"Forward-only benchmark ({len(timings)} iters, warmup {warmup_iters}): "
+                f"mean {mean_time:.4f}s | median {median_time:.4f}s | "
+                f"min {min_time:.4f}s | max {max_time:.4f}s"
+            )
+
+        return stats
+
     def train(self, *args, **kwargs):
         """
         Main training loop.
@@ -680,3 +914,48 @@ class Trainer(nn.Module):
                 pbar.update(1)
 
         self.print("training complete")
+
+
+def collate_with_action_names(batch):
+    """
+    Custom collate_fn that keeps action_name batches in batch-first order while
+    delegating the rest to PyTorch's default collate.
+    """
+    if not batch:
+        return default_collate(batch)
+
+    has_action_names = isinstance(batch[0], dict) and "action_name" in batch[0]
+
+    processed_batch = []
+    action_names_batch: list | None = [] if has_action_names else None
+
+    for sample in batch:
+        if not isinstance(sample, dict):
+            processed_batch.append(sample)
+            if action_names_batch is not None:
+                action_names_batch.append(None)
+            continue
+
+        sample_copy = dict(sample)
+
+        if has_action_names:
+            action_sequence = sample_copy.pop("action_name", None)
+            if action_sequence is None:
+                action_names_batch.append([])
+            elif isinstance(action_sequence, (list, tuple)):
+                action_names_batch.append(list(action_sequence))
+            else:
+                # Fallback: best effort to preserve ordering
+                try:
+                    action_names_batch.append(list(action_sequence))
+                except TypeError:
+                    action_names_batch.append([action_sequence])
+
+        processed_batch.append(sample_copy)
+
+    collated = default_collate(processed_batch)
+
+    if action_names_batch is not None:
+        collated["action_name"] = action_names_batch
+
+    return collated
