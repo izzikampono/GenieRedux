@@ -17,8 +17,8 @@ data:
   genre: null
   motion: null
   platform: null
-  annotation_tag_fpath: data_generation/annotations/RetroAct_v0.1.csv
-  annotation_control_fpath: data_generation/annotations/RetroAct_v0.1_control.csv
+  annotation_tag_fpath: data_generation/annotations/RetroAct_v1.4.csv
+  annotation_control_fpath: data_generation/annotations/RetroAct_v1.4_control.csv
   exclude_blinking: true
   exclude_delayed: true
 

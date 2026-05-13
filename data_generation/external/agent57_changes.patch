@@ -690,37 +690,37 @@ index 1ad9dcd..1e22d0e 100644
 +        "atari2600": {
 +            "A": "BUTTON",
 +            "B": "BUTTON",
-+            "ACTION_JUMP": "BUTTON",
++            "ACTION_PRIMARY": "BUTTON",
 +            "ACTION_PRIMARY": "BUTTON",
 +            "ACTION_SECONDARY": "BUTTON",
 +        },
 +        "nes": {
-+            "ACTION_JUMP": "A",
++            "ACTION_PRIMARY": "A",
 +            "ACTION_PRIMARY": "A",
 +            "ACTION_SECONDARY": "B"
 +        },
 +        "snes": {
-+            "ACTION_JUMP": "B",
++            "ACTION_PRIMARY": "B",
 +            "ACTION_PRIMARY": "B",
 +            "ACTION_SECONDARY": "Y"
 +        },
 +        "genesis": {
-+            "ACTION_JUMP": "C",
++            "ACTION_PRIMARY": "C",
 +            "ACTION_PRIMARY": "C",
 +            "ACTION_SECONDARY": "B"
 +        },
 +        "sms": {
-+            "ACTION_JUMP": "A",
++            "ACTION_PRIMARY": "A",
 +            "ACTION_PRIMARY": "A",
 +            "ACTION_SECONDARY": "B"
 +        },
 +        "gameboy": {
-+            "ACTION_JUMP": "A",
++            "ACTION_PRIMARY": "A",
 +            "ACTION_PRIMARY": "A",
 +            "ACTION_SECONDARY": "B"
 +        },
 +        "32x": {
-+            "ACTION_JUMP": "B",
++            "ACTION_PRIMARY": "B",
 +            "ACTION_PRIMARY": "B",
 +            "ACTION_SECONDARY": "Y"
 +        },
@@ -882,7 +882,7 @@ index 1ad9dcd..1e22d0e 100644
 +    games = [game]#["SuperMarioBros-Nes"] #["AdventureIslandII-Nes"] #get_game_list()
 +    max_episode_steps = max_episode_steps
 +    frame_skip = frame_skip
-+    valid_action_combos = ["UP", "DOWN", "RIGHT", "LEFT", "ACTION_JUMP"]
++    valid_action_combos = ["UP", "DOWN", "RIGHT", "LEFT", "ACTION_PRIMARY"]
 +
 +    def make_retro_multi(games):
 +
@@ -1659,37 +1659,37 @@ index 0000000..13fa250
 +        "atari2600": {
 +            "A": "BUTTON",
 +            "B": "BUTTON",
-+            "ACTION_JUMP": "BUTTON",
++            "ACTION_PRIMARY": "BUTTON",
 +            "ACTION_PRIMARY": "BUTTON",
 +            "ACTION_SECONDARY": "BUTTON",
 +        },
 +        "nes": {
-+            "ACTION_JUMP": "A",
++            "ACTION_PRIMARY": "A",
 +            "ACTION_PRIMARY": "A",
 +            "ACTION_SECONDARY": "B"
 +        },
 +        "snes": {
-+            "ACTION_JUMP": "B",
++            "ACTION_PRIMARY": "B",
 +            "ACTION_PRIMARY": "B",
 +            "ACTION_SECONDARY": "Y"
 +        },
 +        "genesis": {
-+            "ACTION_JUMP": "C",
++            "ACTION_PRIMARY": "C",
 +            "ACTION_PRIMARY": "C",
 +            "ACTION_SECONDARY": "B"
 +        },
 +        "sms": {
-+            "ACTION_JUMP": "A",
++            "ACTION_PRIMARY": "A",
 +            "ACTION_PRIMARY": "A",
 +            "ACTION_SECONDARY": "B"
 +        },
 +        "gameboy": {
-+            "ACTION_JUMP": "A",
++            "ACTION_PRIMARY": "A",
 +            "ACTION_PRIMARY": "A",
 +            "ACTION_SECONDARY": "B"
 +        },
 +        "32x": {
-+            "ACTION_JUMP": "B",
++            "ACTION_PRIMARY": "B",
 +            "ACTION_PRIMARY": "B",
 +            "ACTION_SECONDARY": "Y"
 +        },
@@ -2174,7 +2174,7 @@ index 0000000..13fa250
 +def create_retro(game, seed, num_envs, transform=None, extras=dict()):
 +    # env_fn = partial(instantiate, config=cfg_env)
 +    games = game.split(',')#["SuperMarioBros-Nes"] #["AdventureIslandII-Nes"] #get_game_list()
-+    valid_action_combos = ["RIGHT", "LEFT", "UP", "DOWN", "ACTION_JUMP"]
++    valid_action_combos = ["RIGHT", "LEFT", "UP", "DOWN", "ACTION_PRIMARY"]
 +
 +    max_episode_steps=extras["max_episode_steps"]
 +    frame_skip=extras["frame_skip"]

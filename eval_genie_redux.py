@@ -70,7 +70,6 @@ def resolve_game_whitelist(data_cfg):
 
     game_data = GameData(
         annotation_fpath=data_cfg["annotation_tag_fpath"],
-        control_annotation_fpath=data_cfg.get("annotation_control_fpath"),
         exclude_blinking=bool(data_cfg["exclude_blinking"]),
         exclude_delayed=bool(data_cfg["exclude_delayed"]),
     )

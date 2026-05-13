@@ -4,72 +4,114 @@ import pandas as pd
 class GameData:
     def __init__(
         self,
-        annotation_fpath: str = "annotations/RetroAct_v0.1.csv",
-        control_annotation_fpath: str = "annotations/RetroAct_v0.1_control_GenieRedux-G-50_sublist.csv",
+        annotation_fpath: str = "annotations/RetroAct_v1.4.csv",
         exclude_blinking: bool = False,
         exclude_delayed: bool = False,
         enable_sort=False,
     ):
         self.annotation_fpath = annotation_fpath
-        # read the csv into a pandas dataframe
         self.df = pd.read_csv(annotation_fpath, delimiter=",")
-        # separate df["tags"] using splitting by space into three columns: view, motion and genre
-        # if "new" is in tags remove from the data frame
-        # sort by game
+
         if enable_sort:
             self.df = self.df.sort_values(by="game")
-        self.df = self.df[~self.df["tags"].str.contains("new")]
-        self.df[["view", "motion", "genre"]] = self.df["tags"].str.split(
-            " ", expand=True
-        )[[0, 1, 2]]
+
+        required_cols = {"view", "motion", "genre"}
+        missing = required_cols - set(self.df.columns)
+        if missing:
+            raise ValueError(
+                f"Annotation file '{annotation_fpath}' missing required columns: {sorted(missing)}"
+            )
+
+        mask_new = (
+            self.df[["view", "motion", "genre"]]
+            .astype(str)
+            .apply(lambda s: s.str.contains("new", case=False, na=False))
+            .any(axis=1)
+        )
+        self.df = self.df[~mask_new]
         self.df[["platform"]] = self.df["game"].str.split("-", expand=True)[[1]]
 
-        if control_annotation_fpath is not None:
-            self.enable_controls = True
-            self.df["game_upper"] = self.df["game"]
-            self.df["game"] = self.df["game"].str.lower()
-            self.df_controls = pd.read_csv(control_annotation_fpath, delimiter=",")
-            if enable_sort:
-                self.df_controls = self.df_controls.sort_values(by="game")
+        control_columns = [
+            "RIGHT",
+            "LEFT",
+            "UP",
+            "DOWN",
+            "ACTION_PRIMARY",
+            "ACTION_SECONDARY",
+            "blinking",
+            "delayed",
+        ]
 
-            # join the two dataframes on the game column but the game column in df is with some capitilized letters while in df_controls it is all lower case. After joining keep the capitalization
-            # copy the game column in df to a new one called game_upper
+        if exclude_blinking:
+            self.df = self.df[~self.df["blinking"].fillna("").str.upper().eq("YES")]
+        if exclude_delayed:
+            self.df = self.df[~self.df["delayed"].fillna("").str.upper().eq("YES")]
 
-            self.df = self.df.merge(
-                self.df_controls,
-                on="game",
-                how="left",
-                suffixes=("", "_controls"),
-            )
-            self.df["game"] = self.df["game_upper"]
-            self.df = self.df.drop(columns=["game_upper"])
+    def filter(self, conditions):
+        if not conditions:
+            return
 
-            if exclude_blinking and "blinking" in self.df.columns:
-                self.df = self.df[
-                    ~self.df["blinking"].fillna("").str.upper().eq("YES")
-                ]
-            if exclude_delayed and "delayed" in self.df.columns:
-                self.df = self.df[
-                    ~self.df["delayed"].fillna("").str.upper().eq("YES")
-                ]
-        else:
-            self.enable_controls = False
+        action_columns = [
+            col
+            for col in [
+                "RIGHT",
+                "LEFT",
+                "UP",
+                "DOWN",
+                "ACTION_PRIMARY",
+                "ACTION_SECONDARY",
+            ]
+            if col in self.df.columns
+        ]
 
-    def filter(self, action_map):
-        # clean actions
-        if self.enable_controls:
-            # remove all entries with ACTION_PRIMARY different than jump
-            self.df = self.df[self.df["ACTION_PRIMARY"] == "jump"]
-            # remove all entries with DOWN different than down crouch, climb down or  climb contained in the entry
-            self.df = self.df[self.df["DOWN"].str.contains("none|crouch|climb")]
-            # remove all entries with UP different than climb or none
-            self.df = self.df[self.df["UP"].str.contains("climb|none")]
-            # remove all entries with LEFT different than left
-            self.df = self.df[self.df["LEFT"] == "left"]
-            # remove all entries with RIGHT different than right
-            self.df = self.df[self.df["RIGHT"] == "right"]
-            # remove all entries with transition equal to 1
-            # self.df = self.df[self.df["transition"] == 0]
+        if not action_columns:
+            return
+
+        actions = self.df[action_columns].fillna("").astype(str)
+        actions = actions.applymap(lambda s: s.strip().lower())
+
+        combined_mask = None
+        for pattern in conditions:
+            if not pattern:
+                continue
+
+            clause = pattern.strip().lower()
+            if not clause:
+                continue
+
+            if "|" in clause:
+                options = {opt.strip() for opt in clause.split("|") if opt.strip()}
+
+                def row_match(row):
+                    for value in row:
+                        val = value.strip()
+                        if val in options:
+                            return True
+                    return False
+
+                mask = actions.apply(row_match, axis=1)
+            else:
+                tokens = [tok for tok in clause.split() if tok]
+                if not tokens:
+                    continue
+                token_count = len(tokens)
+                token_set = set(tokens)
+
+                def row_match(row):
+                    for value in row:
+                        val_tokens = [tok for tok in value.strip().split() if tok]
+                        if len(val_tokens) != token_count:
+                            continue
+                        if set(val_tokens) == token_set:
+                            return True
+                    return False
+
+                mask = actions.apply(row_match, axis=1)
+
+            combined_mask = mask if combined_mask is None else (combined_mask & mask)
+
+        if combined_mask is not None:
+            self.df = self.df[combined_mask]
 
     def query(self, view=None, motion=None, genre=None, game=None, platform=None):
         df = self.df

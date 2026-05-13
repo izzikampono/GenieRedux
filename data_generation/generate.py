@@ -113,9 +113,6 @@ def main(cfg):
         connector_config_retro_act["classname"] = connector_cls
         game_data = GameData(
             annotation_fpath=connector_config_retro_act["annotation_behavior_fpath"],
-            control_annotation_fpath=connector_config_retro_act[
-                "annotation_control_fpath"
-            ],
         )
 
         selected_games = connector_config_retro_act["game"]
@@ -123,18 +120,22 @@ def main(cfg):
         view_filter = connector_config_retro_act["view"]
         genre_filter = connector_config_retro_act["genre"]
         platform_filter = connector_config_retro_act["platform"]
-        action_map = connector_config_retro_act["action_map"]
+        action_conditions = connector_config_retro_act["action_map"]
 
-        if action_map == "default":
-            action_map = {
-                "ACTION_PRIMARY": "jump",
-                "DOWN": "none|crouch|climb",
-                "UP": "climb|none",
-                "LEFT": "left",
-                "RIGHT": "right",
-            }
-            
-        game_data.filter(action_map=action_map)
+        if action_conditions == "default":
+            action_conditions = [
+                r"^jump$",
+                r"none|crouch|climb",
+                r"climb|none",
+                r"^left$",
+                r"^right$",
+            ]
+        elif isinstance(action_conditions, dict):
+            action_conditions = list(action_conditions.values())
+        elif isinstance(action_conditions, (str, bytes)):
+            action_conditions = [action_conditions]
+
+        game_data.filter(conditions=action_conditions)
         game_filter = None if selected_games == "all" else selected_games
 
         selected_games = game_data.query(

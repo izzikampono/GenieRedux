@@ -13,8 +13,12 @@ except Exception:
     # Ignore if context already set or unsupported platform
     pass
 
+import importlib
 import logging
 import random
+import sys
+import types
+from pathlib import Path
 
 import cv2
 import gymnasium as gym
@@ -29,11 +33,10 @@ import pandas as pd
 #     VecTransposeImage,
 # )
 import retro
-from pathlib import Path
-import sys, types, importlib
 
 # Lightweight helper to expose a namespace package without touching sys.path
 repo_root = Path(__file__).resolve().parents[2]
+
 
 def _expose_namespace(pkg_name: str, rel_path: str) -> None:
     """Expose `pkg_name` as a namespace whose __path__ points to repo_root/rel_path.
@@ -46,16 +49,18 @@ def _expose_namespace(pkg_name: str, rel_path: str) -> None:
     module.__path__ = [str(repo_root / rel_path)]
     sys.modules[pkg_name] = module
 
+
 def ensure_auto_explore_imports() -> None:
     """Expose only the namespaces required by the AutoExplore connector.
 
     Keeps side effects minimal and scoped to when this connector is used.
     """
     _expose_namespace("auto_explore", "auto_explore")
-    _expose_namespace("data", "data")                 # prefer repo-root data/
+    _expose_namespace("data", "data")  # prefer repo-root data/
     _expose_namespace("data_generation", "data_generation")  # used by data.data
-    _expose_namespace("tools", "tools")               # tools.logger
-    _expose_namespace("models", "models")             # models.genie_redux
+    _expose_namespace("tools", "tools")  # tools.logger
+    _expose_namespace("models", "models")  # models.genie_redux
+
 
 def import_string(path: str):
     """Import a module or object given a string.
@@ -80,6 +85,7 @@ def ensure_deep_rl_zoo_imports() -> None:
     resolve correctly without modifying sys.path.
     """
     _expose_namespace("deep_rl_zoo", "data_generation/external/deep_rl_zoo/deep_rl_zoo")
+
 
 # from gymnasium.wrappers.time_limit import TimeLimit
 
@@ -134,16 +140,15 @@ class Discretizer(gym.ActionWrapper):
         "atari2600": {
             "A": "BUTTON",
             "B": "BUTTON",
-            "ACTION_JUMP": "BUTTON",
             "ACTION_PRIMARY": "BUTTON",
             "ACTION_SECONDARY": "BUTTON",
         },
-        "nes": {"ACTION_JUMP": "A", "ACTION_PRIMARY": "A", "ACTION_SECONDARY": "B"},
-        "snes": {"ACTION_JUMP": "B", "ACTION_PRIMARY": "B", "ACTION_SECONDARY": "Y"},
-        "genesis": {"ACTION_JUMP": "C", "ACTION_PRIMARY": "C", "ACTION_SECONDARY": "B"},
-        "sms": {"ACTION_JUMP": "A", "ACTION_PRIMARY": "A", "ACTION_SECONDARY": "B"},
-        "gameboy": {"ACTION_JUMP": "A", "ACTION_PRIMARY": "A", "ACTION_SECONDARY": "B"},
-        "32x": {"ACTION_JUMP": "B", "ACTION_PRIMARY": "B", "ACTION_SECONDARY": "Y"},
+        "nes": {"ACTION_PRIMARY": "A", "ACTION_SECONDARY": "B"},
+        "snes": {"ACTION_PRIMARY": "B", "ACTION_SECONDARY": "Y"},
+        "genesis": {"ACTION_PRIMARY": "C", "ACTION_SECONDARY": "B"},
+        "sms": {"ACTION_PRIMARY": "A", "ACTION_SECONDARY": "B"},
+        "gameboy": {"ACTION_PRIMARY": "A", "ACTION_SECONDARY": "B"},
+        "32x": {"ACTION_PRIMARY": "B", "ACTION_SECONDARY": "Y"},
     }
 
     def __init__(self, env, platform, combos=None):
@@ -156,11 +161,10 @@ class Discretizer(gym.ActionWrapper):
         self.combos = combos
         self.noop_id = 0
 
-        if self.combos is None:
-            self.combos = buttons
+        original_combos = self.combos if self.combos is not None else buttons
 
         self.combos = [
-            combo if isinstance(combo, list) else [combo] for combo in self.combos
+            combo if isinstance(combo, list) else [combo] for combo in original_combos
         ]
 
         try:
@@ -489,8 +493,9 @@ class RetroActAutoExploreConnector(RetroActConnector):
     def generator(self, instance_id, session_id, n_steps_max):
         # Lazy imports to avoid imposing deps when unused
         from pathlib import Path
-        import torch
+
         import numpy as np
+        import torch
 
         # Scope shims to this connector only
         ensure_auto_explore_imports()
@@ -508,12 +513,18 @@ class RetroActAutoExploreConnector(RetroActConnector):
             if self.valid_action_combos is not None:
                 num_actions = len(self.valid_action_combos)
             else:
-                raise ValueError("Cannot infer number of actions. Provide valid_action_combos in config.")
+                raise ValueError(
+                    "Cannot infer number of actions. Provide valid_action_combos in config."
+                )
 
         agent_cfg = self.config.get("agent", {}) or {}
-        ckpt_path = agent_cfg.get("checkpoint_fpath") or agent_cfg.get("checkpoint_path")
+        ckpt_path = agent_cfg.get("checkpoint_fpath") or agent_cfg.get(
+            "checkpoint_path"
+        )
         if ckpt_path is None:
-            raise ValueError("AutoExplore connector requires agent.checkpoint_fpath (or legacy checkpoint_path) in connector config.")
+            raise ValueError(
+                "AutoExplore connector requires agent.checkpoint_fpath (or legacy checkpoint_path) in connector config."
+            )
         temperature = float(agent_cfg.get("temperature", 1.0))
         gamma = float(agent_cfg.get("gamma", 0.0))
 
@@ -526,7 +537,13 @@ class RetroActAutoExploreConnector(RetroActConnector):
         # Initialize recurrent state for a single environment stream
         actor_critic.reset(n=1)
         agent = AutoExploreAgent(world_model=None, actor_critic=actor_critic).to(device)
-        agent.load(path_to_checkpoint=Path(ckpt_path), device=device, load_tokenizer=False, load_world_model=False, load_actor_critic=True)
+        agent.load(
+            path_to_checkpoint=Path(ckpt_path),
+            device=device,
+            load_tokenizer=False,
+            load_world_model=False,
+            load_actor_critic=True,
+        )
         agent.eval()
 
         # Respect initial skip frames as in base connector
@@ -540,7 +557,9 @@ class RetroActAutoExploreConnector(RetroActConnector):
         # Optional tracker init
         if self.use_tracker:
             self.tracker.init(observation, getattr(self, "init_roi", None))
-            box_size = min(self.init_roi[3] * 5, observation.shape[0], observation.shape[1])
+            box_size = min(
+                self.init_roi[3] * 5, observation.shape[0], observation.shape[1]
+            )
         else:
             box_size = 0
 
@@ -554,7 +573,9 @@ class RetroActAutoExploreConnector(RetroActConnector):
                 obs_t = obs_t.to(torch.bfloat16)
 
             with torch.no_grad():
-                act_token = agent.act(obs_t, should_sample=False, temperature=temperature)
+                act_token = agent.act(
+                    obs_t, should_sample=False, temperature=temperature
+                )
                 act_idx = int(act_token.item())
 
             # Optional exploration
@@ -572,7 +593,9 @@ class RetroActAutoExploreConnector(RetroActConnector):
             tracking_background_mask = None
             if self.use_tracker:
                 try:
-                    frame, tracking_background_mask = apply_tracker(self.tracker, frame, box_size)
+                    frame, tracking_background_mask = apply_tracker(
+                        self.tracker, frame, box_size
+                    )
                 except Exception:
                     # If tracking fails, end this session gracefully
                     break
@@ -609,21 +632,24 @@ class RetroActAgent57Connector(RetroActConnector):
     """
 
     def generator(self, instance_id, session_id, n_steps_max):
-        import numpy as np
-        import cv2
         import random
+
+        import cv2
+        import numpy as np
 
         # Lazy import heavy dependencies; raise actionable error if missing
         try:
             ensure_deep_rl_zoo_imports()
-            from deep_rl_zoo import greedy_actors
-            from deep_rl_zoo.networks.value import Agent57Conv2dNet
-            from deep_rl_zoo.networks.curiosity import RndConvNet, NguEmbeddingConvNet
             import deep_rl_zoo.types as types_lib
-            from deep_rl_zoo.checkpoint import PyTorchCheckpoint
             import torch
+            from deep_rl_zoo import greedy_actors
+            from deep_rl_zoo.checkpoint import PyTorchCheckpoint
+            from deep_rl_zoo.networks.curiosity import NguEmbeddingConvNet, RndConvNet
+            from deep_rl_zoo.networks.value import Agent57Conv2dNet
         except Exception as e:
-            raise ImportError("Agent57 dependencies not found. Install deep_rl_zoo and its deps or use variant=random/auto_explore.") from e
+            raise ImportError(
+                "Agent57 dependencies not found. Install deep_rl_zoo and its deps or use variant=random/auto_explore."
+            ) from e
 
         env = self.env
         observation, _ = env.reset()
@@ -633,12 +659,18 @@ class RetroActAgent57Connector(RetroActConnector):
             if self.valid_action_combos is not None:
                 num_actions = len(self.valid_action_combos)
             else:
-                raise ValueError("Cannot infer number of actions. Provide valid_action_combos in config.")
+                raise ValueError(
+                    "Cannot infer number of actions. Provide valid_action_combos in config."
+                )
 
         agent_cfg = self.config.get("agent", {}) or {}
-        ckpt_path = agent_cfg.get("checkpoint_fpath") or agent_cfg.get("checkpoint_path")
+        ckpt_path = agent_cfg.get("checkpoint_fpath") or agent_cfg.get(
+            "checkpoint_path"
+        )
         if ckpt_path is None:
-            raise ValueError("Agent57 connector requires agent.checkpoint_fpath (or legacy checkpoint_path) in connector config.")
+            raise ValueError(
+                "Agent57 connector requires agent.checkpoint_fpath (or legacy checkpoint_path) in connector config."
+            )
         gamma = float(agent_cfg.get("gamma", 0.0))
 
         # Build networks and load checkpoint
@@ -646,12 +678,18 @@ class RetroActAgent57Connector(RetroActConnector):
         action_dim = num_actions
         runtime_device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-        network = Agent57Conv2dNet(state_dim=state_dim, action_dim=action_dim, num_policies=32)
+        network = Agent57Conv2dNet(
+            state_dim=state_dim, action_dim=action_dim, num_policies=32
+        )
         rnd_target_network = RndConvNet(state_dim=state_dim)
         rnd_predictor_network = RndConvNet(state_dim=state_dim)
-        embedding_network = NguEmbeddingConvNet(state_dim=state_dim, action_dim=action_dim)
+        embedding_network = NguEmbeddingConvNet(
+            state_dim=state_dim, action_dim=action_dim
+        )
 
-        checkpoint = PyTorchCheckpoint(environment_name=self.game, agent_name="Agent57", restore_only=True)
+        checkpoint = PyTorchCheckpoint(
+            environment_name=self.game, agent_name="Agent57", restore_only=True
+        )
         checkpoint.register_pair(("network", network))
         checkpoint.register_pair(("rnd_target_network", rnd_target_network))
         checkpoint.register_pair(("rnd_predictor_network", rnd_predictor_network))
@@ -697,14 +735,18 @@ class RetroActAgent57Connector(RetroActConnector):
         # Optional tracker init
         if self.use_tracker:
             self.tracker.init(observation, getattr(self, "init_roi", None))
-            box_size = min(self.init_roi[3] * 5, observation.shape[0], observation.shape[1])
+            box_size = min(
+                self.init_roi[3] * 5, observation.shape[0], observation.shape[1]
+            )
         else:
             box_size = 0
 
         for frame_id in range(n_steps_max):
             # Prepare 84x84 grayscale observation for the agent
             ob_gray = cv2.cvtColor(observation, cv2.COLOR_RGB2GRAY)
-            ob_gray = cv2.resize(ob_gray, (84, 84), interpolation=cv2.INTER_AREA)[None, ...]
+            ob_gray = cv2.resize(ob_gray, (84, 84), interpolation=cv2.INTER_AREA)[
+                None, ...
+            ]
 
             timestep_t = types_lib.TimeStep(
                 observation=ob_gray,
@@ -728,7 +770,9 @@ class RetroActAgent57Connector(RetroActConnector):
             tracking_background_mask = None
             if self.use_tracker:
                 try:
-                    frame, tracking_background_mask = apply_tracker(self.tracker, frame, box_size)
+                    frame, tracking_background_mask = apply_tracker(
+                        self.tracker, frame, box_size
+                    )
                 except Exception:
                     break
 
@@ -753,7 +797,9 @@ class RetroActAgent57Connector(RetroActConnector):
                 # Flush final done state for the agent57 actor, if needed
                 if done:
                     ob_gray = cv2.cvtColor(observation, cv2.COLOR_RGB2GRAY)
-                    ob_gray = cv2.resize(ob_gray, (84, 84), interpolation=cv2.INTER_AREA)[None, ...]
+                    ob_gray = cv2.resize(
+                        ob_gray, (84, 84), interpolation=cv2.INTER_AREA
+                    )[None, ...]
                     timestep_t = types_lib.TimeStep(
                         observation=ob_gray,
                         reward=reward,

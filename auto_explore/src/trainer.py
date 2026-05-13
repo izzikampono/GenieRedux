@@ -38,7 +38,7 @@ from tools.logger import getLogger
 log = getLogger(__name__)
 
 def get_game_list(root_dpath):
-    game_data = GameData(annotation_fpath=os.path.join(root_dpath,"annotations.csv"), control_annotation_fpath=os.path.join(root_dpath, "controls.csv"), enable_sort=True)
+    game_data = GameData(annotation_fpath=os.path.join(root_dpath,"annotations.csv"), enable_sort=True)
     game_data.clean()
     selected_games = game_data.query(genre=["pl"], motion=None, view=None, game=None, platform=None)
     if len(selected_games) == 0:

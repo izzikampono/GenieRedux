@@ -4,7 +4,7 @@ import os
 import sys
 from pathlib import Path
 
-multiprocessing.set_start_method("fork")
+multiprocessing.set_start_method("fork", force=True)
 
 import logging
 
@@ -30,6 +30,10 @@ CONTROL_ACTIONS = [
     "ACTION_PRIMARY",
     "ACTION_SECONDARY",
 ]
+
+PREVIEW_ONLY_ACTIONS = ["IDLE"]
+ALL_ACTIONS = CONTROL_ACTIONS + PREVIEW_ONLY_ACTIONS
+CONTROL_COMBOS_WITH_IDLE = CONTROL_ACTIONS + [[]]
 
 
 def run_game(
@@ -59,12 +63,21 @@ def run_game(
     step = 0
     frames = []
     if action_name is not None:
-        for idx, combo in enumerate(env.combos):
-            if len(combo) == 1 and combo[0].upper() == action_name.upper():
-                action_vector = np.zeros(len(env.combos), dtype=np.int64)
-                action_vector[idx] = 1
-                break
+        action_vector = None
+        target_name = action_name.upper()
+        if target_name == "IDLE":
+            for idx, combo in enumerate(env.combos):
+                if len(combo) == 0:
+                    action_vector = np.zeros(len(env.combos), dtype=np.int64)
+                    action_vector[idx] = 1
+                    break
         else:
+            for idx, combo in enumerate(env.combos):
+                if len(combo) == 1 and combo[0].upper() == target_name:
+                    action_vector = np.zeros(len(env.combos), dtype=np.int64)
+                    action_vector[idx] = 1
+                    break
+        if action_vector is None:
             raise ValueError(
                 f"Action '{action_name}' not available for game '{selected_game}'."
             )
@@ -122,29 +135,46 @@ def main():
     output_fpath = args.output_fpath
     os.makedirs(output_fpath, exist_ok=True)
 
+    jobs = []
     pool = multiprocessing.Pool(args.workers)
 
-    valid_action_combos = CONTROL_ACTIONS if args.mode == "control" else None
+    valid_action_combos = CONTROL_COMBOS_WITH_IDLE if args.mode == "control" else None
 
-    for game in selected_games:
-        if args.mode == "control":
-            for action in CONTROL_ACTIONS:
-                pool.apply_async(
-                    run_game,
-                    args=(game, n_frames, output_fpath, args),
-                    kwds={
-                        "action_name": action,
-                        "valid_action_combos": valid_action_combos,
-                    },
+    try:
+        for game in selected_games:
+            if args.mode == "control":
+                for action in ALL_ACTIONS:
+                    jobs.append(
+                        pool.apply_async(
+                            run_game,
+                            args=(game, n_frames, output_fpath, args),
+                            kwds={
+                                "action_name": action,
+                                "valid_action_combos": valid_action_combos,
+                            },
+                        )
+                    )
+            else:
+                jobs.append(
+                    pool.apply_async(
+                        run_game,
+                        args=(game, n_frames, output_fpath, args),
+                        kwds={"valid_action_combos": valid_action_combos},
+                    )
                 )
-        else:
-            pool.apply_async(
-                run_game,
-                args=(game, n_frames, output_fpath, args),
-                kwds={"valid_action_combos": valid_action_combos},
-            )
-    pool.close()
-    pool.join()
+
+        pool.close()
+
+        for job in jobs:
+            job.get()
+    except KeyboardInterrupt:
+        pool.terminate()
+        raise
+    except Exception:
+        pool.terminate()
+        raise
+    finally:
+        pool.join()
 
 
 if __name__ == "__main__":
