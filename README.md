@@ -145,12 +145,58 @@ Having the trained tokenizer, we can now train GenieRedux:
 python run.py genie_redux train config=genie_redux train.num_processes=7 train.batch_size=3 train.grad_accum=4 tokenizer_fpath=checkpoints/tokenizer/tokenizer/model-150000.pt
 ```
 
-### Evaluating GenieRedux
+### Evaluating GenieRedux-G
 
-To get quantitative evaluation (ΔPSNR, FID, PSNR, SSIM):
+For a quick GenieRedux-G evaluation run, first activate the training/evaluation environment:
+
 ```bash
-python run.py genie_redux eval config=genie_redux_guided_50 eval.action_to_take=-1 eval.model_fpath=checkpoints/genie_redux_guided/genie_redux_guided/model-100000.pt eval.inference_method=one_go 
+conda activate genie_redux
 ```
+
+Then run one-go inference with the downloaded weights:
+
+```bash
+python run.py genie_redux eval \
+  config=genie_redux_guided_50 \
+  eval.model_fpath=checkpoints/GenieRedux-G_RetroAct-v1.5_platformers-space-shooters_260mln_v1.5/model.pt \
+  tokenizer_fpath=checkpoints/GenieRedux_Tokenizer_RetroAct-v1.5_100mln_v1.5/model.pt \
+  eval.dataset_root_dpath=data_generation/datasets \
+  eval.dataset_name=retro_act_v0.0.0 \
+  eval.model_name=genieredux_g_one_go \
+  eval.save_root_dpath=outputs/evaluation \
+  eval.inference_method=one_go \
+  eval.eval_control=false \
+  eval.batch_size=1 \
+  eval.n_envs=4 \
+  eval.n_samples=1 \
+  eval.n_previews=4
+```
+
+`eval.n_envs` limits the number of environments and `eval.n_samples` limits samples per environment. Set `eval.eval_control=true` to compute ΔPSNR; this performs an additional control rollout and is slower.
+
+Autoregressive inference is also available:
+
+```bash
+python run.py genie_redux eval \
+  config=genie_redux_guided_50 \
+  eval.model_fpath=checkpoints/GenieRedux-G_RetroAct-v1.5_platformers-space-shooters_260mln_v1.5/model.pt \
+  tokenizer_fpath=checkpoints/GenieRedux_Tokenizer_RetroAct-v1.5_100mln_v1.5/model.pt \
+  eval.dataset_root_dpath=data_generation/datasets \
+  eval.dataset_name=retro_act_v0.0.0 \
+  eval.model_name=genieredux_g_autoregressive \
+  eval.save_root_dpath=outputs/evaluation \
+  eval.inference_method=autoregressive \
+  eval.eval_control=false \
+  eval.batch_size=1 \
+  eval.n_envs=4 \
+  eval.n_samples=1 \
+  eval.n_previews=4 \
+  eval.sample_num_frames=10 \
+  eval.dream_length=2 \
+  eval.window_size=16
+```
+
+For autoregressive inference, `eval.sample_num_frames` must be divisible by `eval.dream_length`.
 
 ### Training AutoExplore Agent
 
