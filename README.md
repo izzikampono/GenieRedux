@@ -55,8 +55,6 @@ We present a framework for training multi-environment world models spanning hund
 
 In our latest work, we demonstrate our method on many platformer environments, obtained from our annotated dataset. We provide the training and evaluation code.
 
-> 🚧 The complete codebase has been released. We are working on preparing and providing trained checkpoint files.
-
 > ⚠️ For a minimal case study with the Coinrun environment (as described [here](https://nsavov.github.io/GenieRedux/)), where both GenieRedux and GenieRedux-G are demonstrated, with pretrained weights and with an option for a trained agent, please refer to the [neurips branch](https://github.com/insait-institute/GenieRedux/tree/neurips).
 ![CoinRun](docs/title.gif)
 
@@ -82,6 +80,20 @@ In our latest work, we demonstrate our method on many platformer environments, o
    - `auto_explore` - environment for training and evaluation of AutoExplore Agent models.
 
    In addition, our modified Agent57 repository is set up and our pretrained Agent57 models - downloaded
+
+3. <b>Download model weights.</b>
+
+   To download the currently provided GenieRedux model weights from Hugging Face, run:
+
+   ```shell
+   conda activate genie_redux
+   python download_models.py
+   ```
+
+   This creates a `checkpoints/` directory and stores the downloaded weights as:
+
+   - Tokenizer: `checkpoints/GenieRedux_Tokenizer_RetroAct-v1.5_100mln_v1.5/model.pt`
+   - GenieRedux-G: `checkpoints/GenieRedux-G_RetroAct-v1.5_platformers-space-shooters_260mln_v1.5/model.pt`
 
    > ⚠️ You need to obtain and import the game ROMs in Stable-Retro. To do so, please follow instructions at the [Stable-Retro Docs](https://stable-retro.farama.org/getting_started/#importing-roms).
 
