@@ -1,11 +1,23 @@
 import copy
 import json
+import multiprocessing
 
 import tqdm
+
+
 from generator.generator import EnvironmentDataGenerator
 
 from omegaconf import OmegaConf
 import hydra
+
+
+def _run_env_chunk(config, connector_configs_chunk):
+    """Run a list of game configs sequentially. Executed in a separate process
+    so that each worker can freely create its own inner session pool (plain
+    multiprocessing.Process is non-daemon by default, unlike pool workers).
+    """
+    for connector_config in connector_configs_chunk:
+        run_env(config, connector_config)
 
 
 def filter_games_with_available_roms(games):
@@ -185,13 +197,26 @@ def main(cfg):
     else:
         raise ValueError(f"Unknown environment {config['env']}")
 
-    for connector_config in tqdm.tqdm(connector_configs):
-        run_env(config, connector_config)
+    outer_workers = 1
+    if connector_configs:
+        outer_workers = connector_configs[0].get("n_workers", 1)
 
-    # pool = multiprocessing.Pool(processes=min(len(connector_configs),args.max_workers))
-    # pool.starmap(run_env, [(config, connector_config) for connector_config in connector_configs])
-    # pool.close()
-    # pool.join()
+    if outer_workers > 1:
+        # Split game configs into n_outer chunks and process each chunk in a
+        # dedicated non-daemon process, so inner session pools can be created.
+        n_outer = min(len(connector_configs), outer_workers)
+        chunks = [connector_configs[i::n_outer] for i in range(n_outer)]
+        procs = [
+            multiprocessing.Process(target=_run_env_chunk, args=(config, chunk))
+            for chunk in chunks if chunk
+        ]
+        for p in procs:
+            p.start()
+        for p in procs:
+            p.join()
+    else:
+        for connector_config in tqdm.tqdm(connector_configs):
+            run_env(config, connector_config)
     print("Done")
 
 
