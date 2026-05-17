@@ -24,6 +24,7 @@ roms/*
 .sbatch 
 .log
 
+
 notes_for_snellius.txt
 
 finetune_bs*
