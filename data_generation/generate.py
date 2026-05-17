@@ -151,6 +151,19 @@ def main(cfg):
                 f"No games found for genre={genre_filter}, motion={motion_filter}, view={view_filter}, platform={platform_filter}",
             )
 
+        # Filter to games with ROMs actually imported in stable-retro
+        import retro.data as retro_data
+        available, missing = [], []
+        for game in selected_games:
+            try:
+                retro_data.get_romfile_path(game, retro_data.Integrations.STABLE)
+                available.append(game)
+            except FileNotFoundError:
+                missing.append(game)
+        if missing:
+            print(f"Skipping {len(missing)} games with missing ROMs: {missing}")
+        selected_games = available
+
         # Optionally sort alphabetically and limit to first N titles when requested
         limit_games = connector_config_retro_act.get("limit_games", None)
         selected_games = sorted(selected_games)
