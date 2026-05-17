@@ -1,0 +1,44 @@
+# Data Generation CLI Notes
+# Run from: /gpfs/home3/scur0531/izzi/genieRedux-dev
+# Env: conda activate retro_datagen
+
+# --- ANNOTATION FILES ---
+# Full annotations:  annotations/RetroAct_v1.4.csv                            (973 games, all ROMs available)
+# G-50 sublist:      annotations/RetroAct_v0.1_control_GenieRedux-G-50_sublist.csv  (50 games)
+#
+# Config          | behavior annotation   | control filter  | platformers
+# pretrain.yaml   | RetroAct_v1.4.csv     | none (all)      | ~485
+# control_test    | RetroAct_v1.4.csv     | G-50 sublist    | ~50
+
+# --- SMOKE TEST (1 game, 20 steps) ---
+python run.py generate config=retro_act/control_test \
+  '++connector.game=[SuperMarioBros-Nes]' \
+  ++connector.n_workers=1 \
+  ++connector.generator_config.n_sessions=1 \
+  ++connector.generator_config.n_steps_max=20
+
+# --- SMALL RUN (5 platformers, FULL annotations, 500 steps, frame+video) ---
+# pretrain.yaml uses RetroAct_v1.4.csv with no G-50 sublist restriction (~485 platformers)
+# limit_games=5 picks first 5 alphabetically after annotation+ROM filtering
+python run.py generate config=retro_act/pretrain \
+  ++connector.limit_games=5 \
+  ++connector.generator_config.n_steps_max=500 \
+  ++connector.generator_config.output_mode=both \
+  ++connector.generator_config.n_sessions=10 \
+  ++connector.n_workers=4
+
+# --- FULL RUN (all ~485 platformers, full annotations) ---
+python run.py generate config=retro_act/pretrain \
+  ++connector.generator_config.n_steps_max=500 \
+  ++connector.generator_config.output_mode=both \
+  ++connector.generator_config.n_sessions=20 \
+  ++connector.n_workers=10
+
+# --- KEY PARAMETERS ---
+# connector.limit_games                   : cap number of games (alphabetical after filtering)
+# connector.generator_config.n_sessions   : episodes per game
+# connector.generator_config.n_steps_max  : max steps per episode
+# connector.generator_config.n_workers    : parallel workers per game
+# connector.generator_config.output_mode  : frame | video | both
+# connector.n_workers                     : outer workers (games in parallel)
+# connector.variant                       : random (default) | auto_explore | agent57
