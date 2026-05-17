@@ -21,6 +21,8 @@ roms/*
 .claude
 .vscode
 .vexp
+.sbatch 
+.log
 
 notes_for_snellius.txt
 
