@@ -1,0 +1,631 @@
+================================================================================
+STABLE-RETRO: GAMES WITH ROM (PLAYABLE)
+================================================================================
+Total games in stable-retro:  1004
+Games with ROM (playable):    387
+  - of which platformers:     210
+      pl  (standard):         207
+      pl_fly (flying):        3
+
+Tags key: pl = platformer | pl_fly = flying platformer
+          side/top/3p = view | h/v/free = scrolling
+          shooter, fight, race, sport, etc.
+
+Game                                                    Tags                         Platformer?
+-----------------------------------------------------------------------------------------------
+1942-Nes                                                top h space_shooter          
+1943-Nes                                                top h space_shooter          
+8Eyes-Nes                                               side free pl                 pl
+AbadoxTheDeadlyInnerWar-Nes                             side free action             
+AddamsFamily-Nes                                        side free pl                 pl
+AddamsFamily-Sms                                        side free pl                 pl
+AddamsFamilyPugsleysScavengerHunt-Nes                   side free pl                 pl
+AdventureIsland3-Nes                                    side free pl                 pl
+AdventureIslandII-Nes                                   side free pl                 pl
+AdventuresOfBayouBilly-Nes                              3p free fight                
+AdventuresOfDinoRiki-Nes                                3p free shooter              
+AdventuresOfRockyAndBullwinkleAndFriends-Nes            side free pl                 pl
+Airstriker-Genesis                                      top h space_shooter          
+Airwolf-Nes                                             1p h sim                     
+AlfredChicken-Nes                                       side free pl                 pl
+Alien3-Nes                                              side free pl                 pl
+Alien3-Sms                                              side free pl                 pl
+AlienSyndrome-Sms                                       3p free shooter              
+AlphaMission-Nes                                        top h space_shooter          
+Amagon-Nes                                              side free pl                 pl
+Argus-Nes                                               top h space_shooter          
+Arkanoid-Nes                                            side h pong                  
+ArkistasRing-Nes                                        3p free shooter              
+Armadillo-Nes                                           side free pl                 pl
+Asterix-Sms                                             side free pl                 pl
+AsterixAndTheGreatRescue-Sms                            side free pl                 pl
+AsterixAndTheSecretMission-Sms                          side free pl                 pl
+AstroRoboSasa-Nes                                       side free space_shooter      
+AstroWarrior-Sms                                        top h space_shooter          
+Astyanax-Nes                                            side free pl                 pl
+Athena-Nes                                              side free pl                 pl
+AtlantisNoNazo-Nes                                      side free pl                 pl
+AttackAnimalGakuen-Nes                                  3p free space_shooter        
+AttackOfTheKillerTomatoes-Nes                           side free pl                 pl
+BWings-Nes                                              side h space_shooter         
+BadDudes-Nes                                            side free pl                 pl
+BadStreetBrawler-Nes                                    side free pl                 pl
+BalloonFight-Nes                                        side free pl                 pl
+Baltron-Nes                                             side v space_shooter         
+BananaPrince-Nes                                        side free pl                 pl
+Barbie-Nes                                              side free pl                 pl
+BatmanReturns-Nes                                       side free pl                 pl
+BattleCity-Nes                                          top free shooter             
+Battletoads-Nes                                         3p free fight                
+BinaryLand-Nes                                          top free grid                
+BioMiracleBokutteUpa-Nes                                side free pl                 pl
+BioSenshiDanIncreaserTonoTatakai-Nes                    side free pl                 pl
+BirdWeek-Nes                                            side free pl_fly             pl_fly
+BladeEagle-Sms                                          top h space_shooter          
+BomberRaid-Sms                                          top h space_shooter          
+BonkersWaxUp-Sms                                        side free pl                 pl
+BoobyKids-Nes                                           3p free shooter              
+BoulderDash-Nes                                         top free grid                
+BramStokersDracula-Nes                                  side free pl                 pl
+BreakThru-Nes                                           3p free shooter              
+BubbleBobble-Nes                                        side free pl                 pl
+BubbleBobble-Sms                                        side free pl                 pl
+BubbleBobblePart2-Nes                                   side free pl                 pl
+BuckyOHare-Nes                                          side free pl                 pl
+BugsBunnyBirthdayBlowout-Nes                            side free pl                 pl
+BuraiFighter-Nes                                        side free pl                 pl
+CaptainAmericaAndTheAvengers-Nes                        side free pl                 pl
+CaptainPlanetAndThePlaneteers-Nes                       side v space_shooter         
+CaptainSilver-Nes                                       side free fight              
+Castelian-Nes                                           side free pl                 pl
+Castlevania-Nes                                         side free pl                 pl
+CastlevaniaIIIDraculasCurse-Nes                         side free pl                 pl
+CatNindenTeyandee-Nes                                   side free pl                 pl
+ChacknPop-Nes                                           side free pl                 pl
+Challenger-Nes                                          side free pl                 pl
+CheeseCatAstropheStarringSpeedyGonzales-Sms             side free pl                 pl
+Choplifter-Nes                                          side free space_shooter      
+ChouFuyuuYousaiExedExes-Nes                             top h space_shooter          
+ChoujikuuYousaiMacross-Nes                              side v space_shooter         
+ChubbyCherub-Nes                                        side free pl_fly             pl_fly
+ChuckRock-Sms                                           side free pl                 pl
+ChuckRockIISonOfChuck-Sms                               side free pl                 pl
+CircusCaper-Nes                                         side free action             
+CircusCharlie-Nes                                       side free pl                 pl
+CityConnection-Nes                                      side free pl                 pl
+Cliffhanger-Nes                                         side free pl                 pl
+CloudMaster-Sms                                         side free pl_fly             pl_fly
+CluCluLand-Nes                                          top free grid                
+CobraTriangle-Nes                                       3p h space_shooter           
+CodeNameViper-Nes                                       side free pl                 pl
+ComicalMachineGunJoe-Sms                                3p h shooter                 
+Conan-Nes                                               side free pl                 pl
+ConquestOfTheCrystalPalace-Nes                          side free pl                 pl
+ContraForce-Nes                                         side free pl                 pl
+CoolSpot-Sms                                            side free pl                 pl
+CosmicEpsilon-Nes                                       3p h space_shooter           
+CrossFire-Nes                                           side free pl                 pl
+CyberShinobi-Sms                                        side free pl                 pl
+DaffyDuckInHollywood-Sms                                side free pl                 pl
+DananTheJungleFighter-Sms                               side free pl                 pl
+Darkman-Nes                                             side free pl                 pl
+DashGalaxyInTheAlienAsylum-Nes                          top free grid                
+DeepDuckTroubleStarringDonaldDuck-Sms                   side free pl                 pl
+DefenderII-Nes                                          side v space_shooter         
+DickTracy-Sms                                           3p free shooter              
+DigDugIITroubleInParadise-Nes                           top free shooter             
+DiggerTheLegendOfTheLostCity-Nes                        side free pl                 pl
+DirtyHarry-Nes                                          side free pl                 pl
+DonDokoDon-Nes                                          side free pl                 pl
+DonkeyKong-Nes                                          side free pl                 pl
+DonkeyKong3-Nes                                         side free pl                 pl
+DonkeyKongJr-Nes                                        side free pl                 pl
+DoubleDragon-Nes                                        3p free fight                
+DoubleDragonIITheRevenge-Nes                            3p free fight                
+DragonPower-Nes                                         3p free shooter              
+DragonSpiritTheNewLegend-Nes                            top h space_shooter          
+DynamiteDuke-Sms                                        1p free shooter              
+ElevatorAction-Nes                                      side free pl                 pl
+Exerion-Nes                                             top h space_shooter          
+FantasyZone-Sms                                         side v space_shooter         
+FantasyZoneIIOpaOpaNoNamida-Nes                         side free space_shooter      
+FantasyZoneIITheTearsOfOpaOpa-Sms                       side free space_shooter      
+FantasyZoneTheMaze-Sms                                  top free maze                
+FelixTheCat-Nes                                         side free pl                 pl
+FinalBubbleBobble-Sms                                   side free pl                 pl
+FireAndIce-Sms                                          side free pl                 pl
+FistOfTheNorthStar-Nes                                  side free fight              
+FlintstonesTheRescueOfDinoAndHoppy-Nes                  side free pl                 pl
+FlyingDragonTheSecretScroll-Nes                         side free pl                 pl
+FlyingHero-Nes                                          side h action                
+FormationZ-Nes                                          side free pl                 pl
+FoxsPeterPanAndThePiratesTheRevengeOfCaptainHook-Nes    side free pl                 pl
+FrontLine-Nes                                           3p free shooter              
+FushigiNoOshiroPitPot-Sms                               top free fight               
+GIJoeARealAmericanHero-Nes                              side free pl                 pl
+GIJoeTheAtlantisFactor-Nes                              side free pl                 pl
+GalagaDemonsOfDeath-Nes                                 top h space_shooter          
+GalaxyForce-Sms                                         3p free space_shooter        
+Gauntlet-Sms                                            top free shooter             
+Geimos-Nes                                              3p h space_shooter           
+GhostsnGoblins-Nes                                      side free pl                 pl
+GhoulSchool-Nes                                         side free pl                 pl
+Gimmick-Nes                                             side free pl                 pl
+GlobalDefense-Sms                                       side v space_shooter         
+Gradius-Nes                                             side v space_shooter         
+GradiusII-Nes                                           side v space_shooter         
+GreatTank-Nes                                           3p free shooter              
+Gremlins2TheNewBatch-Nes                                3p free shooter              
+GuardianLegend-Nes                                      top h space_shooter          
+GuerrillaWar-Nes                                        3p free shooter              
+GunNac-Nes                                              top h space_shooter          
+Gyrodine-Nes                                            top h space_shooter          
+Gyruss-Nes                                              3p tube space_shooter        
+HammerinHarry-Nes                                       side free pl                 pl
+HangOn-Sms                                              3p h race                    
+HeavyBarrel-Nes                                         3p free shooter              
+HelloKittyWorld-Nes                                     side free pl                 pl
+HomeAlone2LostInNewYork-Nes                             side free action             
+HuntForRedOctober-Nes                                   side v space_shooter         
+IceClimber-Nes                                          side free pl                 pl
+Ikari-Nes                                               top free shooter             
+IkariIIITheRescue-Nes                                   3p free shooter              
+Ikki-Nes                                                3p free shooter              
+IncredibleHulk-Sms                                      side free pl                 pl
+IndianaJonesAndTheTempleOfDoom-Nes                      side free pl                 pl
+InsectorX-Nes                                           side v space_shooter         
+IronSwordWizardsAndWarriorsII-Nes                       side free pl                 pl
+IsolatedWarrior-Nes                                     3p h space_shooter           
+Jackal-Nes                                              top free shooter             
+JackieChansActionKungFu-Nes                             side free pl                 pl
+JajamaruNoDaibouken-Nes                                 side free pl                 pl
+JamesBond007TheDuel-Sms                                 side free pl                 pl
+JamesBondJr-Nes                                         side free pl                 pl
+JamesPond2CodenameRoboCod-Sms                           side free pl                 pl
+Jaws-Nes                                                top free shooter             
+JetsonsCogswellsCaper-Nes                               side free pl                 pl
+JoeAndMac-Nes                                           side free pl                 pl
+JourneyToSilius-Nes                                     side free pl                 pl
+Joust-Nes                                               side free pl                 pl
+JungleBook-Nes                                          side free pl                 pl
+KabukiQuantumFighter-Nes                                side free pl                 pl
+KaiketsuYanchaMaru2KarakuriLand-Nes                     side free pl                 pl
+KaiketsuYanchaMaru3TaiketsuZouringen-Nes                side free pl                 pl
+KamenNoNinjaAkakage-Nes                                 side free pl                 pl
+KanshakudamaNageKantarouNoToukaidouGojuusanTsugi-Nes    side free pl                 pl
+KeroppiToKeroriinuNoSplashBomb-Nes                      3p free grid                 
+KidIcarus-Nes                                           side free pl                 pl
+KidKlownInNightMayorWorld-Nes                           side free pl                 pl
+KidNikiRadicalNinja-Nes                                 side free pl                 pl
+KirbysAdventure-Nes                                     side free pl                 pl
+KungFu-Nes                                              side free fight              
+KungFuHeroes-Nes                                        3p free shooter              
+KungFuKid-Sms                                           side free fight              
+LandOfIllusionStarringMickeyMouse-Sms                   side free pl                 pl
+LastActionHero-Nes                                      side free pl                 pl
+LastStarfighter-Nes                                     top v space_shooter          
+LegendOfKage-Nes                                        side free pl                 pl
+LegendOfPrinceValiant-Nes                               3p free fight                
+LegendaryWings-Nes                                      top h space_shooter          
+LifeForce-Nes                                           side v space_shooter         
+LineOfFire-Sms                                          top h space_shooter          
+LittleMermaid-Nes                                       side free space_shooter      
+LowGManTheLowGravityMan-Nes                             side free pl                 pl
+LuckyDimeCaperStarringDonaldDuck-Sms                    side free pl                 pl
+MCKids-Nes                                              side free pl                 pl
+Magmax-Nes                                              3p v space_shooter           
+MappyLand-Nes                                           side free pl                 pl
+MarbleMadness-Sms                                       3p free pl                   pl
+MarioBros-Nes                                           side h pl                    pl
+MasterOfDarkness-Sms                                    side free pl                 pl
+MechanizedAttack-Nes                                    1p free shooter              
+MegaMan-Nes                                             side free pl                 pl
+MegaMan2-Nes                                            side free pl                 pl
+MendelPalace-Nes                                        3p free grid                 
+MetalStorm-Nes                                          side free pl                 pl
+MichaelJacksonsMoonwalker-Sms                           side free pl                 pl
+MickeyMousecapade-Nes                                   side free pl                 pl
+MightyBombJack-Nes                                      side free pl                 pl
+MightyFinalFight-Nes                                    side free pl                 pl
+Millipede-Nes                                           side h space_shooter         
+MitsumeGaTooru-Nes                                      side free pl                 pl
+MoeroTwinBeeCinnamonHakaseOSukue-Nes                    side v space_shooter         
+MonsterInMyPocket-Nes                                   side free pl                 pl
+MonsterParty-Nes                                        side free pl                 pl
+MsPacMan-Nes                                            top free maze                
+MsPacMan-Sms                                            top free maze                
+MutantVirusCrisisInAComputerWorld-Nes                   top free other               
+MyHero-Sms                                              side free fight              
+MysteryQuest-Nes                                        side free pl                 pl
+NARC-Nes                                                3p free shooter              
+NewZealandStory-Sms                                     side free pl                 pl
+Ninja-Sms                                               3p free fight                
+NinjaCrusaders-Nes                                      side free pl                 pl
+NinjaGaiden-Nes                                         side free pl                 pl
+NinjaGaiden-Sms                                         side free pl                 pl
+NinjaGaidenIIITheAncientShipOfDoom-Nes                  side free pl                 pl
+NinjaGaidenIITheDarkSwordOfChaos-Nes                    side free pl                 pl
+NinjaKid-Nes                                            side free pl                 pl
+NoahsArk-Nes                                            side free pl                 pl
+OperationWolf-Nes                                       1p free shooter              
+Ottifants-Sms                                           side free pl                 pl
+OverHorizon-Nes                                         side v space_shooter         
+POWPrisonersOfWar-Nes                                   side free pl                 pl
+PacManNamco-Nes                                         top free maze                
+PacMania-Sms                                            3p free maze                 
+PanicRestaurant-Nes                                     side free pl                 pl
+Paperboy-Nes                                            3p free shooter              
+Paperboy-Sms                                            3p free shooter              
+Parodius-Nes                                            side v space_shooter         
+PenguinKunWars-Nes                                      3p fixed action              
+PitFighter-Sms                                          side free fight              
+PizzaPop-Nes                                            side free pl                 pl
+Pooyan-Nes                                              side v space_shooter         
+Popeye-Nes                                              side free pl                 pl
+PoseidonWars3D-Sms                                      1p free sim                  
+PowerStrike-Sms                                         top h space_shooter          
+PowerStrikeII-Sms                                       top h space_shooter          
+Predator2-Sms                                           3p free shooter              
+PsychicWorld-Sms                                        side free pl                 pl
+PunchOut-Nes                                            3p free fight                
+Punisher-Nes                                            side h space_shooter         
+PussNBootsPerosGreatAdventure-Nes                       side free pl                 pl
+QBert-Nes                                               3p fixed action              
+Quartet-Sms                                             side free pl                 pl
+Quarth-Nes                                              top h space_shooter          
+RType-Sms                                               side v space_shooter         
+RainbowIslands-Nes                                      side free pl                 pl
+RainbowIslandsStoryOfTheBubbleBobble2-Sms               side free pl                 pl
+RamboFirstBloodPartII-Sms                               3p free shooter              
+Rampage-Nes                                             side free action             
+Renegade-Nes                                            3p free fight                
+Renegade-Sms                                            3p free fight                
+RoboCop2-Nes                                            side free pl                 pl
+RoboCop3-Nes                                            side free pl                 pl
+RoboCop3-Sms                                            side free pl                 pl
+RoboCopVersusTheTerminator-Sms                          side free pl                 pl
+RoboWarrior-Nes                                         3p free shooter              
+RoboccoWars-Nes                                         side free pl                 pl
+RockinKats-Nes                                          side free pl                 pl
+Rollerball-Nes                                          side free pinball            
+Rollergames-Nes                                         3p free fight                
+RunningBattle-Sms                                       side free pl                 pl
+RushnAttack-Nes                                         side free pl                 pl
+SCATSpecialCyberneticAttackTeam-Nes                     side free pl                 pl
+SDHeroSoukessenTaoseAkuNoGundan-Nes                     side free pl                 pl
+Sagaia-Sms                                              side v space_shooter         
+Sansuu5And6NenKeisanGame-Nes                            side v space_shooter         
+Satellite7-Sms                                          top free space_shooter       
+SectionZ-Nes                                            side v shooter               
+Seicross-Nes                                            3p v space_shooter           
+SeikimaIIAkumaNoGyakushuu-Nes                           side free pl                 pl
+Shatterhand-Nes                                         side free pl                 pl
+Shinobi-Sms                                             side free pl                 pl
+SilverSurfer-Nes                                        side v space_shooter         
+SimpsonsBartVsTheSpaceMutants-Nes                       side free pl                 pl
+SimpsonsBartVsTheWorld-Nes                              side free pl                 pl
+SimpsonsBartmanMeetsRadioactiveMan-Nes                  3p free fight                
+SkyDestroyer-Nes                                        3p h space_shooter           
+SkyKid-Nes                                              side free pl                 pl
+SkyShark-Nes                                            top h space_shooter          
+SmashTV-Nes                                             top free shooter             
+Smurfs-Nes                                              side free pl                 pl
+SnakeRattleNRoll-Nes                                    3p free pl                   pl
+SnowBrothers-Nes                                        side free pl                 pl
+SonSon-Nes                                              side free pl                 pl
+SonicBlast-Sms                                          side free pl                 pl
+SonicTheHedgehog-Sms                                    side free pl                 pl
+SonicTheHedgehog2-Sms                                   side free pl                 pl
+SpaceHarrier-Nes                                        3p free space_shooter        
+SpaceHarrier-Sms                                        3p h space_shooter           
+SpaceHarrier3D-Sms                                      3p h space_shooter           
+SpaceInvaders-Nes                                       side h space_shooter         
+SpartanX2-Nes                                           side free pl                 pl
+Spelunker-Nes                                           side free pl                 pl
+SpiderManReturnOfTheSinisterSix-Sms                     side free pl                 pl
+SpyHunter-Nes                                           top h action                 
+Sqoon-Nes                                               side v space_shooter         
+StarForce-Nes                                           top h space_shooter          
+StarSoldier-Nes                                         top h space_shooter          
+StarWars-Nes                                            side free pl                 pl
+StarshipHector-Nes                                      top h space_shooter          
+Stinger-Nes                                             side v space_shooter         
+StreetsOfRageII-Sms                                     side free fight              
+SubmarineAttack-Sms                                     side v space_shooter         
+SuperArabian-Nes                                        side free pl                 pl
+SuperC-Nes                                              side free pl                 pl
+SuperMarioBros-Nes                                      side free pl                 pl
+SuperMarioBros3-Nes                                     side free pl                 pl
+SuperPitfall-Nes                                        side free pl                 pl
+SuperSpaceInvaders-Sms                                  side h space_shooter         
+SuperStarForce-Nes                                      top h space_shooter          
+SuperWonderBoy-Sms                                      side free pl                 pl
+SuperXeviousGumpNoNazo-Nes                              top h space_shooter          
+SupermanTheManOfSteel-Sms                               side free pl                 pl
+SwampThing-Nes                                          side free pl                 pl
+T2TheArcadeGame-Sms                                     side free space_shooter      
+TaiyouNoYuushaFighbird-Nes                              top h space_shooter          
+TakahashiMeijinNoBugutteHoney-Nes                       side free pl                 pl
+TargetRenegade-Nes                                      3p free fight                
+TazMania-Sms                                            side free pl                 pl
+TeenageMutantNinjaTurtles-Nes                           side free pl                 pl
+TeenageMutantNinjaTurtlesIIITheManhattanProject-Nes     3p free pl                   pl
+TeenageMutantNinjaTurtlesIITheArcadeGame-Nes            3p free pl                   pl
+TeenageMutantNinjaTurtlesTournamentFighters-Nes         side free fight              
+Terminator-Sms                                          side free pl                 pl
+Terminator2JudgmentDay-Nes                              side free pl                 pl
+TerraCresta-Nes                                         top h space_shooter          
+TetrastarTheFighter-Nes                                 3p free space_shooter        
+TetsuwanAtom-Nes                                        side free pl                 pl
+Thexder-Nes                                             side free other              
+ThunderAndLightning-Nes                                 side h pong                  
+ThunderBlade-Sms                                        top h space_shooter          
+Thundercade-Nes                                         3p h space_shooter           
+TigerHeli-Nes                                           top h space_shooter          
+TimeZone-Nes                                            side free pl                 pl
+TinyToonAdventures-Nes                                  side free pl                 pl
+Toki-Nes                                                side free pl                 pl
+TotalRecall-Nes                                         side free pl                 pl
+TotallyRad-Nes                                          side free pl                 pl
+ToxicCrusaders-Nes                                      3p free pl                   pl
+TransBot-Sms                                            side free space_shooter      
+TreasureMaster-Nes                                      side free pl                 pl
+Trog-Nes                                                top free grid                
+Trojan-Nes                                              side free fight              
+TrollsInCrazyland-Nes                                   side free pl                 pl
+TwinBee-Nes                                             3p free action               
+TwinBee3PokoPokoDaimaou-Nes                             top h space_shooter          
+TwinCobra-Nes                                           top h space_shooter          
+TwinEagle-Nes                                           top h space_shooter          
+Untouchables-Nes                                        side fixed action            
+UrbanChampion-Nes                                       side free fight              
+UruseiYatsuraLumNoWeddingBell-Nes                       side free pl                 pl
+ViceProjectDoom-Nes                                     top h space_shooter          
+Vigilante-Sms                                           side free fight              
+VolguardII-Nes                                          side v space_shooter         
+Warpman-Nes                                             top free grid                
+WaynesWorld-Nes                                         side free pl                 pl
+Widget-Nes                                              side free pl                 pl
+WizardsAndWarriors-Nes                                  side free pl                 pl
+Wolfchild-Sms                                           side free pl                 pl
+WonderBoyInMonsterWorld-Sms                             side free pl                 pl
+WrathOfTheBlackManta-Nes                                side free pl                 pl
+WreckingCrew-Nes                                        side free pl                 pl
+XMenMojoWorld-Sms                                       side free pl                 pl
+Xenophobe-Nes                                           side free action             
+XeviousTheAvenger-Nes                                   top h space_shooter          
+Xexyz-Nes                                               side free pl                 pl
+YoukaiClub-Nes                                          side free pl                 pl
+YoukaiDouchuuki-Nes                                     side free pl                 pl
+YoungIndianaJonesChronicles-Nes                         side free pl                 pl
+Zanac-Nes                                               top h shooter                
+ZoolNinjaOfTheNthDimension-Sms                          side free pl                 pl
+
+================================================================================
+PLATFORMERS (ROM present)
+================================================================================
+Total:   210  (pl: 207  |  pl_fly: 3)
+
+-- Standard platformers (pl) --
+  8Eyes-Nes  [side free pl]
+  AddamsFamily-Nes  [side free pl]
+  AddamsFamily-Sms  [side free pl]
+  AddamsFamilyPugsleysScavengerHunt-Nes  [side free pl]
+  AdventureIsland3-Nes  [side free pl]
+  AdventureIslandII-Nes  [side free pl]
+  AdventuresOfRockyAndBullwinkleAndFriends-Nes  [side free pl]
+  AlfredChicken-Nes  [side free pl]
+  Alien3-Nes  [side free pl]
+  Alien3-Sms  [side free pl]
+  Amagon-Nes  [side free pl]
+  Armadillo-Nes  [side free pl]
+  Asterix-Sms  [side free pl]
+  AsterixAndTheGreatRescue-Sms  [side free pl]
+  AsterixAndTheSecretMission-Sms  [side free pl]
+  Astyanax-Nes  [side free pl]
+  Athena-Nes  [side free pl]
+  AtlantisNoNazo-Nes  [side free pl]
+  AttackOfTheKillerTomatoes-Nes  [side free pl]
+  BadDudes-Nes  [side free pl]
+  BadStreetBrawler-Nes  [side free pl]
+  BalloonFight-Nes  [side free pl]
+  BananaPrince-Nes  [side free pl]
+  Barbie-Nes  [side free pl]
+  BatmanReturns-Nes  [side free pl]
+  BioMiracleBokutteUpa-Nes  [side free pl]
+  BioSenshiDanIncreaserTonoTatakai-Nes  [side free pl]
+  BonkersWaxUp-Sms  [side free pl]
+  BramStokersDracula-Nes  [side free pl]
+  BubbleBobble-Nes  [side free pl]
+  BubbleBobble-Sms  [side free pl]
+  BubbleBobblePart2-Nes  [side free pl]
+  BuckyOHare-Nes  [side free pl]
+  BugsBunnyBirthdayBlowout-Nes  [side free pl]
+  BuraiFighter-Nes  [side free pl]
+  CaptainAmericaAndTheAvengers-Nes  [side free pl]
+  Castelian-Nes  [side free pl]
+  Castlevania-Nes  [side free pl]
+  CastlevaniaIIIDraculasCurse-Nes  [side free pl]
+  CatNindenTeyandee-Nes  [side free pl]
+  ChacknPop-Nes  [side free pl]
+  Challenger-Nes  [side free pl]
+  CheeseCatAstropheStarringSpeedyGonzales-Sms  [side free pl]
+  ChuckRock-Sms  [side free pl]
+  ChuckRockIISonOfChuck-Sms  [side free pl]
+  CircusCharlie-Nes  [side free pl]
+  CityConnection-Nes  [side free pl]
+  Cliffhanger-Nes  [side free pl]
+  CodeNameViper-Nes  [side free pl]
+  Conan-Nes  [side free pl]
+  ConquestOfTheCrystalPalace-Nes  [side free pl]
+  ContraForce-Nes  [side free pl]
+  CoolSpot-Sms  [side free pl]
+  CrossFire-Nes  [side free pl]
+  CyberShinobi-Sms  [side free pl]
+  DaffyDuckInHollywood-Sms  [side free pl]
+  DananTheJungleFighter-Sms  [side free pl]
+  Darkman-Nes  [side free pl]
+  DeepDuckTroubleStarringDonaldDuck-Sms  [side free pl]
+  DiggerTheLegendOfTheLostCity-Nes  [side free pl]
+  DirtyHarry-Nes  [side free pl]
+  DonDokoDon-Nes  [side free pl]
+  DonkeyKong-Nes  [side free pl]
+  DonkeyKong3-Nes  [side free pl]
+  DonkeyKongJr-Nes  [side free pl]
+  ElevatorAction-Nes  [side free pl]
+  FelixTheCat-Nes  [side free pl]
+  FinalBubbleBobble-Sms  [side free pl]
+  FireAndIce-Sms  [side free pl]
+  FlintstonesTheRescueOfDinoAndHoppy-Nes  [side free pl]
+  FlyingDragonTheSecretScroll-Nes  [side free pl]
+  FormationZ-Nes  [side free pl]
+  FoxsPeterPanAndThePiratesTheRevengeOfCaptainHook-Nes  [side free pl]
+  GIJoeARealAmericanHero-Nes  [side free pl]
+  GIJoeTheAtlantisFactor-Nes  [side free pl]
+  GhostsnGoblins-Nes  [side free pl]
+  GhoulSchool-Nes  [side free pl]
+  Gimmick-Nes  [side free pl]
+  HammerinHarry-Nes  [side free pl]
+  HelloKittyWorld-Nes  [side free pl]
+  IceClimber-Nes  [side free pl]
+  IncredibleHulk-Sms  [side free pl]
+  IndianaJonesAndTheTempleOfDoom-Nes  [side free pl]
+  IronSwordWizardsAndWarriorsII-Nes  [side free pl]
+  JackieChansActionKungFu-Nes  [side free pl]
+  JajamaruNoDaibouken-Nes  [side free pl]
+  JamesBond007TheDuel-Sms  [side free pl]
+  JamesBondJr-Nes  [side free pl]
+  JamesPond2CodenameRoboCod-Sms  [side free pl]
+  JetsonsCogswellsCaper-Nes  [side free pl]
+  JoeAndMac-Nes  [side free pl]
+  JourneyToSilius-Nes  [side free pl]
+  Joust-Nes  [side free pl]
+  JungleBook-Nes  [side free pl]
+  KabukiQuantumFighter-Nes  [side free pl]
+  KaiketsuYanchaMaru2KarakuriLand-Nes  [side free pl]
+  KaiketsuYanchaMaru3TaiketsuZouringen-Nes  [side free pl]
+  KamenNoNinjaAkakage-Nes  [side free pl]
+  KanshakudamaNageKantarouNoToukaidouGojuusanTsugi-Nes  [side free pl]
+  KidIcarus-Nes  [side free pl]
+  KidKlownInNightMayorWorld-Nes  [side free pl]
+  KidNikiRadicalNinja-Nes  [side free pl]
+  KirbysAdventure-Nes  [side free pl]
+  LandOfIllusionStarringMickeyMouse-Sms  [side free pl]
+  LastActionHero-Nes  [side free pl]
+  LegendOfKage-Nes  [side free pl]
+  LowGManTheLowGravityMan-Nes  [side free pl]
+  LuckyDimeCaperStarringDonaldDuck-Sms  [side free pl]
+  MCKids-Nes  [side free pl]
+  MappyLand-Nes  [side free pl]
+  MarbleMadness-Sms  [3p free pl]
+  MarioBros-Nes  [side h pl]
+  MasterOfDarkness-Sms  [side free pl]
+  MegaMan-Nes  [side free pl]
+  MegaMan2-Nes  [side free pl]
+  MetalStorm-Nes  [side free pl]
+  MichaelJacksonsMoonwalker-Sms  [side free pl]
+  MickeyMousecapade-Nes  [side free pl]
+  MightyBombJack-Nes  [side free pl]
+  MightyFinalFight-Nes  [side free pl]
+  MitsumeGaTooru-Nes  [side free pl]
+  MonsterInMyPocket-Nes  [side free pl]
+  MonsterParty-Nes  [side free pl]
+  MysteryQuest-Nes  [side free pl]
+  NewZealandStory-Sms  [side free pl]
+  NinjaCrusaders-Nes  [side free pl]
+  NinjaGaiden-Nes  [side free pl]
+  NinjaGaiden-Sms  [side free pl]
+  NinjaGaidenIIITheAncientShipOfDoom-Nes  [side free pl]
+  NinjaGaidenIITheDarkSwordOfChaos-Nes  [side free pl]
+  NinjaKid-Nes  [side free pl]
+  NoahsArk-Nes  [side free pl]
+  Ottifants-Sms  [side free pl]
+  POWPrisonersOfWar-Nes  [side free pl]
+  PanicRestaurant-Nes  [side free pl]
+  PizzaPop-Nes  [side free pl]
+  Popeye-Nes  [side free pl]
+  PsychicWorld-Sms  [side free pl]
+  PussNBootsPerosGreatAdventure-Nes  [side free pl]
+  Quartet-Sms  [side free pl]
+  RainbowIslands-Nes  [side free pl]
+  RainbowIslandsStoryOfTheBubbleBobble2-Sms  [side free pl]
+  RoboCop2-Nes  [side free pl]
+  RoboCop3-Nes  [side free pl]
+  RoboCop3-Sms  [side free pl]
+  RoboCopVersusTheTerminator-Sms  [side free pl]
+  RoboccoWars-Nes  [side free pl]
+  RockinKats-Nes  [side free pl]
+  RunningBattle-Sms  [side free pl]
+  RushnAttack-Nes  [side free pl]
+  SCATSpecialCyberneticAttackTeam-Nes  [side free pl]
+  SDHeroSoukessenTaoseAkuNoGundan-Nes  [side free pl]
+  SeikimaIIAkumaNoGyakushuu-Nes  [side free pl]
+  Shatterhand-Nes  [side free pl]
+  Shinobi-Sms  [side free pl]
+  SimpsonsBartVsTheSpaceMutants-Nes  [side free pl]
+  SimpsonsBartVsTheWorld-Nes  [side free pl]
+  SkyKid-Nes  [side free pl]
+  Smurfs-Nes  [side free pl]
+  SnakeRattleNRoll-Nes  [3p free pl]
+  SnowBrothers-Nes  [side free pl]
+  SonSon-Nes  [side free pl]
+  SonicBlast-Sms  [side free pl]
+  SonicTheHedgehog-Sms  [side free pl]
+  SonicTheHedgehog2-Sms  [side free pl]
+  SpartanX2-Nes  [side free pl]
+  Spelunker-Nes  [side free pl]
+  SpiderManReturnOfTheSinisterSix-Sms  [side free pl]
+  StarWars-Nes  [side free pl]
+  SuperArabian-Nes  [side free pl]
+  SuperC-Nes  [side free pl]
+  SuperMarioBros-Nes  [side free pl]
+  SuperMarioBros3-Nes  [side free pl]
+  SuperPitfall-Nes  [side free pl]
+  SuperWonderBoy-Sms  [side free pl]
+  SupermanTheManOfSteel-Sms  [side free pl]
+  SwampThing-Nes  [side free pl]
+  TakahashiMeijinNoBugutteHoney-Nes  [side free pl]
+  TazMania-Sms  [side free pl]
+  TeenageMutantNinjaTurtles-Nes  [side free pl]
+  TeenageMutantNinjaTurtlesIIITheManhattanProject-Nes  [3p free pl]
+  TeenageMutantNinjaTurtlesIITheArcadeGame-Nes  [3p free pl]
+  Terminator-Sms  [side free pl]
+  Terminator2JudgmentDay-Nes  [side free pl]
+  TetsuwanAtom-Nes  [side free pl]
+  TimeZone-Nes  [side free pl]
+  TinyToonAdventures-Nes  [side free pl]
+  Toki-Nes  [side free pl]
+  TotalRecall-Nes  [side free pl]
+  TotallyRad-Nes  [side free pl]
+  ToxicCrusaders-Nes  [3p free pl]
+  TreasureMaster-Nes  [side free pl]
+  TrollsInCrazyland-Nes  [side free pl]
+  UruseiYatsuraLumNoWeddingBell-Nes  [side free pl]
+  WaynesWorld-Nes  [side free pl]
+  Widget-Nes  [side free pl]
+  WizardsAndWarriors-Nes  [side free pl]
+  Wolfchild-Sms  [side free pl]
+  WonderBoyInMonsterWorld-Sms  [side free pl]
+  WrathOfTheBlackManta-Nes  [side free pl]
+  WreckingCrew-Nes  [side free pl]
+  XMenMojoWorld-Sms  [side free pl]
+  Xexyz-Nes  [side free pl]
+  YoukaiClub-Nes  [side free pl]
+  YoukaiDouchuuki-Nes  [side free pl]
+  YoungIndianaJonesChronicles-Nes  [side free pl]
+  ZoolNinjaOfTheNthDimension-Sms  [side free pl]
+
+-- Flying platformers (pl_fly) --
+  BirdWeek-Nes  [side free pl_fly]
+  ChubbyCherub-Nes  [side free pl_fly]
+  CloudMaster-Sms  [side free pl_fly]
+
+================================================================================
+TOTALS
+================================================================================
+  Total games in stable-retro:  1004
+  Games with ROM (playable):    387
+  Platformers (playable):       210
+    - pl  (standard):           207
+    - pl_fly (flying):          3
+  Unannotated (playable):       0

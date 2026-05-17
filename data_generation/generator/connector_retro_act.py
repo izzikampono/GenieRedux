@@ -82,6 +82,7 @@ def ensure_deep_rl_zoo_imports() -> None:
     _expose_namespace("deep_rl_zoo", "data_generation/external/deep_rl_zoo/deep_rl_zoo")
 
 # from gymnasium.wrappers.time_limit import TimeLimit
+from gymnasium.wrappers import TimeLimit
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format="%(processName)s: %(message)s")
@@ -326,11 +327,7 @@ def make_retro(
     env = retro.make(game, state, render_mode=render_mode, **kwargs)
     env = StochasticFrameSkip(env, n=skip_frames, stickprob=0, want_render=True)
     if max_episode_steps is not None:
-        raise NotImplementedError(
-            "TimeLimit wrapper is not implemented for retro environments. "
-            "Please use a custom TimeLimit wrapper if needed.",
-        )
-        # env = TimeLimit(env, max_episode_steps=max_episode_steps)
+        env = TimeLimit(env, max_episode_steps=max_episode_steps)
 
     if use_discretization:
         platform = game.split("-")[1]
@@ -503,13 +500,24 @@ class RetroActConnector(BaseConnector):
         np.random.seed()
         random.seed()
 
+        # 8-frame cycle: 4 NOOP frames, then 4 action frames.
+        # Divide by n_skip_frames to convert frame-level counts to step-level.
+        idle_window_steps = max(1, 4 // self.n_skip_frames)
+        cycle_steps = max(2, 8 // self.n_skip_frames)
+        noop_id = 0
+
         box_size = 0
         if self.use_tracker:
             # scale the box to the player's height
             self.tracker.init(ob, self.init_roi)
             box_size = min(self.init_roi[3] * 5, ob.shape[0], ob.shape[1])
 
+        # One-hot at noop_id for game stepping; all-zeros stored in JSON.
         action_noop = np.zeros_like(env.action_space.sample())
+        action_noop[noop_id] = 1
+        action_noop_stored = np.zeros_like(action_noop)
+        n_actions = action_noop.shape[0]
+
         for frame_id in range(self.n_skip_start_frames // self.n_skip_frames):
             ob, totrew, terminated, truncated, info = env.step(action_noop)
             session_end = frame_id == n_steps_max - 1 or terminated or truncated
@@ -517,11 +525,20 @@ class RetroActConnector(BaseConnector):
                 return
 
         actual_frame_id = 0
+        current_action = action_noop
+        current_action_stored = action_noop_stored
         for step_id in range(n_steps_max):
-            if step_id % 2 == 0:
-                action = action_noop
-            else:
-                action = env.action_space.sample()
+            phase = step_id % cycle_steps
+            if phase == 0:
+                current_action = action_noop
+                current_action_stored = action_noop_stored
+            elif phase == idle_window_steps:
+                act_idx = np.random.randint(1, n_actions)
+                current_action = np.zeros(n_actions, dtype=action_noop.dtype)
+                current_action[act_idx] = 1
+                current_action_stored = current_action
+            action = current_action
+            action_stored = current_action_stored
             ob, totrew, terminated, truncated, info = env.step(action)
             sub_frames = info.pop("frames", [ob])
             session_end = step_id == n_steps_max - 1 or terminated or truncated
@@ -552,7 +569,7 @@ class RetroActConnector(BaseConnector):
                     "src_frame_id": actual_frame_id - 1,
                     "tgt_frame_id": actual_frame_id,
                     "frame": frame,
-                    "action": action.tolist(),
+                    "action": action_stored.tolist(),
                     "session_end": session_end and is_last_sub,
                     "extras": extras,
                 }

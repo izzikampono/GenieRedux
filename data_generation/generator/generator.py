@@ -172,7 +172,7 @@ class EnvironmentDataGenerator:
             env_dname += "_" + suffix
             dname += "_" + suffix
         self.name = dname
-        self.data_dpath = osp.join(config["data_dpath"], env_dname, dname)
+        self.data_dpath = osp.join(config["data_dpath"], dname)
         self.fs: DatasetFileStructure = DatasetFileStructure(self.data_dpath)
 
         # Set up the dataset info
@@ -204,6 +204,14 @@ class EnvironmentDataGenerator:
         env_connector = connector_class_name(connector_config)
         render_fps = connector_config.get("n_skip_frames", 1)
         for instance_id, session_id in tqdm(ids):
+            # Skip already-completed sessions: actions.json is written as the
+            # very last step of a session, so its presence means the session
+            # finished successfully.
+            # actions_fpath_check = fs.get_action_fpath(instance_id, session_id)
+            # if osp.exists(actions_fpath_check):
+            #     print(f"Skipping already-completed session (instance={instance_id}, session={session_id}): {actions_fpath_check}")
+            #     continue
+
             actions = []
             video_stream = None
 
