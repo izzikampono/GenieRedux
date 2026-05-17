@@ -295,8 +295,10 @@ class EnvironmentDataGenerator:
                 instance_id, session_id=session_id, make_dirs=True
             )
             with open(actions_fpath, "w") as f:
-                json.dump({"actions": actions}, f)
-
+                json.dump({
+                    "action_vocab": env_connector.get_info().get("action_captions", []),
+                    "actions": actions,
+                }, f, indent=2)
     def generate(self):
         if self.is_enabled is False:
             return
