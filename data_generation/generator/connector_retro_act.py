@@ -205,6 +205,7 @@ class StochasticFrameSkip(gym.Wrapper):
         terminated = False
         truncated = False
         totrew = 0
+        frames = []
         for i in range(self.n):
             # First step after reset, use action
             if self.curac is None:
@@ -216,12 +217,7 @@ class StochasticFrameSkip(gym.Wrapper):
             # Second substep, new action definitely kicks in
             elif i == 1:
                 self.curac = ac
-            if self.supports_want_render and i < self.n - 1:
-                ob, rew, terminated, truncated, info = self.env.step(
-                    self.curac,
-                    want_render=False,
-                )
-            elif self.supports_want_render:
+            if self.supports_want_render:
                 ob, rew, terminated, truncated, info = self.env.step(
                     self.curac,
                     want_render=self.want_render,
@@ -229,9 +225,11 @@ class StochasticFrameSkip(gym.Wrapper):
             else:
                 ob, rew, terminated, truncated, info = self.env.step(self.curac)
             totrew += rew
+            frames.append(ob)
 
             if terminated or truncated:
                 break
+        info["frames"] = frames
         return ob, totrew, terminated, truncated, info
 
 
@@ -431,52 +429,90 @@ class RetroActConnector(BaseConnector):
         np.random.seed()
         random.seed()
 
+        # 8-step cycle: first 4 steps are NOOP, next 4 steps are a random action.
+        # Divide by n_skip_frames to convert game-frame counts to env-step counts.
+        idle_window_steps = max(1, 4 // self.n_skip_frames)
+        cycle_steps = max(2, 8 // self.n_skip_frames)
+        noop_id = 0  # NOOP must be index 0 in valid_action_combos
+
         box_size = 0
         if self.use_tracker:
             # scale the box to the player's height
             self.tracker.init(ob, self.init_roi)
             box_size = min(self.init_roi[3] * 5, ob.shape[0], ob.shape[1])
 
+        # action_noop is the one-hot sent to the env (index 0 = NOOP → no buttons pressed).
+        # action_noop_stored is all-zeros of size n_actions-1 (NOOP index dropped from stored vectors).
+        # Stored action vectors are always (n_actions-1)-dim: NOOP=[0,...,0], RIGHT=[1,0,...], etc.
         action_noop = np.zeros_like(env.action_space.sample())
+        action_noop[noop_id] = 1
+        n_actions = action_noop.shape[0]
+        action_noop_stored = np.zeros(n_actions - 1, dtype=action_noop.dtype)
+
         for frame_id in range(self.n_skip_start_frames // self.n_skip_frames):
             ob, totrew, terminated, truncated, info = env.step(action_noop)
             session_end = frame_id == n_steps_max - 1 or terminated or truncated
             if session_end:
                 return
 
-        for frame_id in range(n_steps_max):
-            action = env.action_space.sample()
+        actual_frame_id = 0
+        current_action = action_noop
+        current_action_stored = action_noop_stored
+        for step_id in range(n_steps_max):
+            phase = step_id % cycle_steps
+            if phase == 0:
+                # Start of cycle: hold NOOP for idle_window_steps steps
+                current_action = action_noop
+                current_action_stored = action_noop_stored
+            elif phase == idle_window_steps:
+                # After idle window: pick a random non-NOOP action, hold for remainder of cycle
+                act_idx = np.random.randint(1, n_actions)  # 1..n-1, never NOOP (index 0)
+                current_action = np.zeros(n_actions, dtype=action_noop.dtype)
+                current_action[act_idx] = 1
+                # Stored vector drops the NOOP index: [0,1,0,...] (6-dim) → [1,0,...] (5-dim)
+                current_action_stored = current_action[1:]
+
+            action = current_action
+            action_stored = current_action_stored
+
             ob, totrew, terminated, truncated, info = env.step(action)
-            frame = ob
-            session_end = frame_id == n_steps_max - 1 or terminated or truncated
-            extras = info
-            tracking_background_mask = None
+            sub_frames = info.pop("frames", [ob])
+            session_end = step_id == n_steps_max - 1 or terminated or truncated
+            tracker_failed = False
 
-            if self.use_tracker:
-                try:
-                    frame, tracking_background_mask = apply_tracker(
-                        self.tracker, frame, box_size
-                    )
-                except:
-                    print(f"Failed to track object in frame {frame_id}")
-                    break
+            for sub_idx, frame in enumerate(sub_frames):
+                is_last_sub = sub_idx == len(sub_frames) - 1
+                tracking_background_mask = None
 
-            if self.image_size is not None:
-                frame = pad_to_match_aspect_ratio(frame, self.image_size)
-                frame = cv2.resize(frame, self.image_size, interpolation=cv2.INTER_AREA)
+                if self.use_tracker:
+                    try:
+                        frame, tracking_background_mask = apply_tracker(
+                            self.tracker, frame, box_size
+                        )
+                    except:
+                        print(f"Failed to track object in frame {actual_frame_id}")
+                        tracker_failed = True
+                        break
 
-            extras["tracking_background_mask"] = tracking_background_mask
+                if self.image_size is not None:
+                    frame = pad_to_match_aspect_ratio(frame, self.image_size)
+                    frame = cv2.resize(frame, self.image_size, interpolation=cv2.INTER_AREA)
 
-            yield {
-                "src_frame_id": frame_id - 1,
-                "tgt_frame_id": frame_id,
-                "frame": frame,
-                "action": action.tolist(),
-                "session_end": session_end,
-                "extras": extras,
-            }
+                # game info (rewards, etc.) only attached to the last sub-frame of the step
+                extras = dict(info) if is_last_sub else {}
+                extras["tracking_background_mask"] = tracking_background_mask
 
-            if session_end:
+                yield {
+                    "src_frame_id": actual_frame_id - 1,
+                    "tgt_frame_id": actual_frame_id,
+                    "frame": frame,
+                    "action": action_stored.tolist(),  # always (n_actions-1)-dim, NOOP=[0,...,0]
+                    "session_end": session_end and is_last_sub,
+                    "extras": extras,
+                }
+                actual_frame_id += 1
+
+            if tracker_failed or session_end:
                 break
 
 
